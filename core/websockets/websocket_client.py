@@ -9,7 +9,7 @@ class WebsocketClient:
         self.url = url
         self.msg = msg
 
-    async def start(self):
+    async def stream(self):
         delay = 1
         while True:
             try:
@@ -17,6 +17,9 @@ class WebsocketClient:
                 await self.subscribe(self.msg)
                 delay = 1
                 async for message in self.ws:
+                    sys_time = time.time()
+                    if isinstance(message, dict):
+                        message['sys_time'] = sys_time
                     yield message
             except Exception as e:
                 delay = min(delay * 2, 30)
@@ -30,6 +33,3 @@ class WebsocketClient:
     # we can leave msg a parameter here if a additional message is required in the future
     async def subscribe(self, msg):
         self.ws.send(json.dumps(msg))
-
-    async def close(self):
-        self.ws.close()
