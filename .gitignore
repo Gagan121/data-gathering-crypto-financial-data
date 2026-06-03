@@ -1,3 +1,5 @@
 .gitignore
 .venv
 .idea
+notes.txt
+coinbase_data
