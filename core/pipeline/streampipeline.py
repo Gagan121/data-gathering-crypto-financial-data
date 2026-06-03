@@ -20,7 +20,8 @@ class StreamPipeline:
 
     async def producer(self):
         async for msg in self.ws.stream():
-            await self.exchange_adapter.add_to_queue(msg)
+            if self.exchange_adapter.validate_message(msg):
+                await self.exchange_adapter.add_to_queue(msg)
 
     async def consumer(self):
         while True:

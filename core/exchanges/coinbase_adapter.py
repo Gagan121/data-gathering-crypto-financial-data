@@ -1,4 +1,4 @@
-from exchange_adapter import ExchangeAdapter
+from core.exchanges.exchange_adapter import ExchangeAdapter
 from datetime import datetime
 
 class CoinbaseAdapter(ExchangeAdapter):

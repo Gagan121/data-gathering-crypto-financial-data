@@ -17,10 +17,10 @@ class WebsocketClient:
                 await self.subscribe(self.msg)
                 delay = 1
                 async for message in self.ws:
+                    data = json.loads(message)
                     sys_time = time.time()
-                    if isinstance(message, dict):
-                        message['sys_time'] = sys_time
-                    yield message
+                    data['sys_time'] = sys_time
+                    yield data
             except Exception as e:
                 delay = min(delay * 2, 30)
                 print(f"Disconnected... {time.time()} \n{e}")
@@ -29,7 +29,7 @@ class WebsocketClient:
 
 
     async def connect(self):
-        self.ws = websockets.connect(self.url)
+        self.ws = await websockets.connect(self.url)
     # we can leave msg a parameter here if a additional message is required in the future
     async def subscribe(self, msg):
-        self.ws.send(json.dumps(msg))
+        await self.ws.send(json.dumps(msg))

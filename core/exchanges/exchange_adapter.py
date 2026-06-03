@@ -1,5 +1,5 @@
-# nearest thing to abstract classes
 import asyncio
+# nearest thing to abstract classes
 from abc import ABC, abstractmethod
 import pandas as pd
 import os
@@ -39,11 +39,11 @@ class ExchangeAdapter(ABC):
         return self.max_size_for_queue
 
 
-    def add_to_queue(self, msg):
-        self.queue.put(msg)
+    async def add_to_queue(self, msg):
+        await self.queue.put(msg)
 
-    def get_item_from_queue(self):
-        return self.queue.get()
+    async def get_item_from_queue(self):
+        return await self.queue.get()
 
     def complete_queue_task(self):
         self.queue.task_done()
