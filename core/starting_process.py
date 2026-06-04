@@ -6,6 +6,7 @@ from core.pipeline.streampipeline import StreamPipeline
 
 async def main():
     coinbase_adapter = CoinbaseAdapter(
+        exchange_name="Coinbase",
         path_to_folder=r"D:\python_projects\data_gathering_using_websockets_finance_crypto\data",
         url="wss://advanced-trade-ws.coinbase.com",
         msg= {

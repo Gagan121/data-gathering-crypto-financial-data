@@ -33,15 +33,25 @@ class StreamPipeline:
 
     async def consumer(self):
         while True:
+            # the queue service can only give us an error is async - cancel occurs and need to marry up with task_done
             mes = await self.queue.get()
-            self.batch_list.append(mes)
+            try:
+                self.batch_list.append(mes)
 
-            if len(self.batch_list) >= (self.max_size_for_queue -1):
-                normalised_list_of_data = self.exchange_adapter.normalise_data(batch_list=self.batch_list)
+                if len(self.batch_list) >= (self.max_size_for_queue -1):
+                    # save the list location to a local variable
+                    batch_to_write = self.batch_list
+                    # create a new list and a new memory location
+                    self.batch_list = []
+                    normalised_list_of_data = self.exchange_adapter.normalise_data(batch_list=batch_to_write)
 
-                await asyncio.to_thread(
-                    self.exchange_adapter.writer,
-                    normalised_list_of_data
-                )
-                self.batch_list.clear()
-
+                    await asyncio.to_thread(
+                        self.exchange_adapter.writer,
+                        normalised_list_of_data
+                    )
+            except Exception as e:
+                print(f"error normalising data and pushing to thread to save: \n{e}")
+            finally:
+                # a safety case if a errors occurs after the queue.get, thus this task_done balances the queue so we can move forward
+                # technically not needed but if queue.join is used then this is required
+                self.queue.task_done()

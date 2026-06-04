@@ -2,8 +2,8 @@ from core.exchanges.exchange_adapter import ExchangeAdapter
 from datetime import datetime
 
 class CoinbaseAdapter(ExchangeAdapter):
-    def __init__(self, path_to_folder:str, url:str, msg:dict) -> None:
-        super().__init__(path_to_folder, exchange_name="Coinbase", url=url, msg=msg)
+    def __init__(self, path_to_folder:str, url:str, msg:dict, exchange_name:str) -> None:
+        super().__init__(path_to_folder, exchange_name=exchange_name, url=url, msg=msg)
 
     def validate_message(self, msg):
         return (
@@ -23,7 +23,7 @@ class CoinbaseAdapter(ExchangeAdapter):
             exch_ts_micro = new_dt.microsecond
 
             sys_ts_sec = int(sys_time)
-            sys_ts_micro = int((sys_time - sys_ts_sec) * 1000)
+            sys_ts_micro = int((sys_time - sys_ts_sec) * 1_000_000)
 
             try:
                 price = data['events'][0]['tickers'][0]['price']

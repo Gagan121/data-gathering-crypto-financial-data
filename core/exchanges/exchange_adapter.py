@@ -83,3 +83,5 @@ class ExchangeAdapter(ABC):
                 return
             except Exception as e:
                 print("failed to write: ", e)
+                # in another thread so sleeping will not affect the thread
+                time.sleep(1)
