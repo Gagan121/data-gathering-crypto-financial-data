@@ -6,17 +6,24 @@ class CoinbaseAdapter(ExchangeAdapter):
         super().__init__(path_to_folder, exchange_name="Coinbase", url=url, msg=msg)
 
     def validate_message(self, msg):
-        return "events" in msg and msg["events"]
+        return (
+            isinstance(msg, dict)
+            and "events" in msg
+            and len(msg["events"]) > 0
+        )
 
 
-    def normalise_data(self):
+    def normalise_data(self, batch_list:list) -> list:
         normalised_data = []
-        for data in self.batch_list:
+        for data in batch_list:
             ts = data["timestamp"]
             sys_time = data['sys_time']
-            new_timestamp_numerical = datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
-            exch_ts_sec, exch_ts_micro = [int(item) for item in str(new_timestamp_numerical).split('.')]
-            sys_ts_sec, sys_ts_micro = [int(item) for item in str(round(sys_time, 6)).split('.')]
+            new_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            exch_ts_sec = int(new_dt.timestamp())
+            exch_ts_micro = new_dt.microsecond
+
+            sys_ts_sec = int(sys_time)
+            sys_ts_micro = int((sys_time - sys_ts_sec) * 1000)
 
             try:
                 price = data['events'][0]['tickers'][0]['price']
@@ -41,4 +48,4 @@ class CoinbaseAdapter(ExchangeAdapter):
 
             normalised_data.append(norm_data)
 
-        self.normalised_list_of_data =  normalised_data
+        return normalised_data

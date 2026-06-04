@@ -12,6 +12,14 @@ class StreamPipeline:
             msg=self.exchange_adapter.get_msg()
         )
 
+        self.batch_list = []
+        self.max_size_for_queue = 1000
+
+        self.queue = asyncio.Queue(maxsize=self.max_size_for_queue)
+        self.normalised_list_of_data = []
+
+
+
     async def run(self):
         await asyncio.gather(
             self.producer(),
@@ -21,18 +29,19 @@ class StreamPipeline:
     async def producer(self):
         async for msg in self.ws.stream():
             if self.exchange_adapter.validate_message(msg):
-                await self.exchange_adapter.add_to_queue(msg)
+                await self.queue.put(msg)
 
     async def consumer(self):
         while True:
-            mes = await self.exchange_adapter.get_item_from_queue()
-            self.exchange_adapter.add_to_batch_list(mes)
+            mes = await self.queue.get()
+            self.batch_list.append(mes)
 
-            if self.exchange_adapter.check_batch_size_reach_max():
-                self.exchange_adapter.normalise_data()
-                self.exchange_adapter.clear_batch_list()
+            if len(self.batch_list) >= (self.max_size_for_queue -1):
+                normalised_list_of_data = self.exchange_adapter.normalise_data(batch_list=self.batch_list)
 
                 await asyncio.to_thread(
-                    self.exchange_adapter.writer
+                    self.exchange_adapter.writer,
+                    normalised_list_of_data
                 )
+                self.batch_list.clear()
 
