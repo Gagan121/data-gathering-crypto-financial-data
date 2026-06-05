@@ -8,23 +8,34 @@ class WebsocketClient:
         self.ws = None
         self.url = url
         self.msg = msg
+        self.running = True
+
+    async def shutdown(self):
+        if self.ws:
+            await self.ws.close()
 
     async def stream(self):
         delay = 1
-        while True:
-            try:
-                await self.connect()
-                await self.subscribe(self.msg)
-                delay = 1
-                async for message in self.ws:
-                    data = json.loads(message)
-                    sys_time = time.time()
-                    data['sys_time'] = sys_time
-                    yield data
-            except Exception as e:
-                delay = min(delay * 2, 30)
-                print(f"Disconnected... {time.time()} \n{e}")
-                await asyncio.sleep(delay)
+        try:
+            while True:
+                try:
+                    await self.connect()
+                    await self.subscribe(self.msg)
+                    delay = 1
+                    async for message in self.ws:
+                        data = json.loads(message)
+                        sys_time = time.time()
+                        data['sys_time'] = sys_time
+                        yield data
+                except Exception as e:
+                    delay = min(delay * 2, 30)
+                    print(f"Disconnected... {time.time()} \n{e}")
+                    await asyncio.sleep(delay)
+        except asyncio.CancelledError as e:
+            print(f"Closing connection... in websocket, stream() {time.time()} \n{e}")
+            await self.shutdown()
+            raise
+
 
 
 

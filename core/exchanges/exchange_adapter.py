@@ -1,4 +1,3 @@
-import asyncio
 # nearest thing to abstract classes
 from abc import ABC, abstractmethod
 import pandas as pd
@@ -20,39 +19,6 @@ class ExchangeAdapter(ABC):
         self.exchange_name = exchange_name
         self.url = url
         self.msg = msg
-        # self.batch_list = []
-        # self.max_size_for_queue = 1000
-        #
-        # self.queue = asyncio.Queue(maxsize=self.max_size_for_queue)
-        # self.normalised_list_of_data = []
-
-
-
-    # def check_batch_size_reach_max(self) -> bool:
-    #     return len(self.batch_list) >= (self.max_size_for_queue -1)
-    #
-    # def get_max_size_for_queue(self):
-    #     return self.max_size_for_queue
-    #
-    #
-    # async def add_to_queue(self, msg):
-    #     await self.queue.put(msg)
-    #
-    # async def get_item_from_queue(self):
-    #     return await self.queue.get()
-    #
-    # def complete_queue_task(self):
-    #     self.queue.task_done()
-    #
-    #
-    # def add_to_batch_list(self, msg):
-    #     self.batch_list.append(msg)
-    #
-    # def get_batch_list(self):
-    #     return self.batch_list
-    #
-    # def clear_batch_list(self):
-    #     self.batch_list = []
 
     def get_url(self) -> str:
         return self.url
