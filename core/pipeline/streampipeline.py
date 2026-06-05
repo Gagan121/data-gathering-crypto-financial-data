@@ -14,6 +14,7 @@ class StreamPipeline:
 
         self.batch_list = []
         self.max_size_for_queue = 1000
+        self.max_size_for_batch = 5000
 
         self.queue = asyncio.Queue(maxsize=self.max_size_for_queue)
         self.normalised_list_of_data = []
@@ -38,7 +39,7 @@ class StreamPipeline:
             try:
                 self.batch_list.append(mes)
 
-                if len(self.batch_list) >= (self.max_size_for_queue -1):
+                if len(self.batch_list) >= self.max_size_for_batch:
                     # save the list location to a local variable
                     batch_to_write = self.batch_list
                     # create a new list and a new memory location
