@@ -8,8 +8,16 @@ class CoinbaseAdapter(ExchangeAdapter):
     def validate_message(self, msg):
         return (
             isinstance(msg, dict)
+            and "timestamp" in msg
             and "events" in msg
             and len(msg["events"]) > 0
+            and "tickers" in msg["events"][0]
+            and len(msg["events"][0]["tickers"]) > 0
+            and "price" in msg["events"][0]["tickers"][0]
+            and "best_bid" in msg["events"][0]["tickers"][0]
+            and "best_ask" in msg["events"][0]["tickers"][0]
+            and "best_bid_quantity" in msg["events"][0]["tickers"][0]
+            and "best_ask_quantity" in msg["events"][0]["tickers"][0]
         )
 
 
