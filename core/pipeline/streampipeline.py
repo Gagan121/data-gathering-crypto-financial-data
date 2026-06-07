@@ -34,6 +34,7 @@ class StreamPipeline:
             await self.ws.shutdown()
 
             producer_task.cancel()
+            # the gather here is waiting for the producer_task to stop and suppresses the error caused -> a try await could be similar catching a asyncio CancelledError
             await asyncio.gather(producer_task, return_exceptions=True)
             # making sure the producer ends first thus no messages can pass on to
 

@@ -1,14 +1,4 @@
-# for similar code require for functions you can make a fixture, this will be passed to the required function by passing it into the parameter of a function and when it is run it will build it.
-# @pytest.fixture
-# def adapter():
-#     return CoinbaseAdapter(
-#         exchange_name="Coinbase",
-#         path_to_folder=".",
-#         url="test",
-#         msg={}
-#     )
 import pytest
-
 from core.exchanges.coinbase_adapter import CoinbaseAdapter
 
 

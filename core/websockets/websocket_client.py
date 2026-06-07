@@ -8,7 +8,6 @@ class WebsocketClient:
         self.ws = None
         self.url = url
         self.msg = msg
-        self.running = True
 
     async def shutdown(self):
         if self.ws:
