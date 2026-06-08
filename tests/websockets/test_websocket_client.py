@@ -5,6 +5,9 @@ from tests.websockets.fake_websocket import FakeWebsocket
 from core.websockets.websocket_client import WebsocketClient
 from unittest.mock import AsyncMock, patch
 
+from tests.websockets.flaky_connector import FlakyConnector
+
+
 @pytest.mark.asyncio
 async def test_stream_with_fake_websocket():
 
@@ -56,6 +59,29 @@ async def test_websocket_close_on_shutdown():
 
         fake_ws.close.assert_awaited_once()
 
-def test_reconnect_after_failure():
-    pass
+
+@pytest.mark.asyncio
+async def test_reconnect_after_failure():
+    flaky_connector = FlakyConnector()
+
+    with patch(
+        "core.websockets.websocket_client.websockets.connect",
+        new=flaky_connector
+    ):
+        client = WebsocketClient(url="ws://test", msg={})
+
+        results = []
+
+        async def run():
+            async for msg in client.stream():
+                results.append(msg)
+                if len(results) == 1:
+                    break
+
+        # this needs to have a large timeout time otherwise the first error caused by flaky_connector will cause the cause a cancellation error due to it timing out
+        await asyncio.wait_for(run(), timeout=10)
+
+    assert len(results) == 1
+    assert flaky_connector.calls >= 2
+
 
