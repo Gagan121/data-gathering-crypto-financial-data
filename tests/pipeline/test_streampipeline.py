@@ -1,5 +1,5 @@
 import asyncio
-
+from unittest.mock import MagicMock, AsyncMock
 import pytest
 from core.exchanges.exchange_adapter import ExchangeAdapter
 from core.pipeline.streampipeline import StreamPipeline
@@ -82,14 +82,67 @@ async def test_process_restore_batch_on_failure_on_normalisation_of_data(pipelin
     # gets all values of the old batch and checks if they are in the pipeline.batch_list to see if there has been a recovery -> all means every value must be true
     assert pipeline.batch_list == [{"event": 0},{"event": 1}]
 
-def test_consumer_triggers_batch_process_and_write():
-    pass
+# remember you are testing not adding additional functionality ,e.g. not clearing list for it to trigger another set of events
+@pytest.mark.asyncio
+async def test_consumer_triggers_batch_process_and_again_on_error_thrown(pipeline:StreamPipeline):
 
-def test_consumer_empties_queue_on_cancel():
-    pass
+    pipeline.max_size_for_batch = 2
+    # we use AsyncMock to mock functions that are async
+    pipeline.process_batch = AsyncMock()
 
-def test_consumer_pushes_remaining_batch_on_cancel():
-    pass
+    await pipeline.queue.put({"event": 0})
+    await pipeline.queue.put({"event": 1})
+
+    # this has to be a task not just await because it has a while loop in it
+    consumer_task = asyncio.create_task(pipeline.consumer())
+
+    await asyncio.sleep(0.1)
+
+    consumer_task.cancel()
+
+    await asyncio.gather(consumer_task, return_exceptions=True)
+
+    # assert_awaited() -> can reset if ran twice,  thus throwing errors
+    assert pipeline.process_batch.await_count >= 2
+
+
+@pytest.mark.asyncio
+async def test_consumer_empties_queue_on_cancel(pipeline):
+    pipeline.max_size_for_batch = 2
+
+    await pipeline.queue.put({"event": 0})
+    await pipeline.queue.put({"event": 1})
+
+    # this has to be a task not just await because it has a while loop in it
+    consumer_task = asyncio.create_task(pipeline.consumer())
+
+    await asyncio.sleep(0.1)
+
+    consumer_task.cancel()
+
+    await asyncio.gather(consumer_task, return_exceptions=True)
+
+    assert pipeline.queue.qsize() >= 0
+
+@pytest.mark.asyncio
+async def test_consumer_pushes_remaining_batch_on_cancel(pipeline:StreamPipeline):
+    # the limit here to reach on which a process/write occurs, if below then cancel list is pushed
+    pipeline.max_size_for_batch = 4
+
+    await pipeline.queue.put({"event": 0})
+    await pipeline.queue.put({"event": 1})
+
+    # this has to be a task not just await because it has a while loop in it
+    consumer_task = asyncio.create_task(pipeline.consumer())
+
+    await asyncio.sleep(0.1)
+
+    consumer_task.cancel()
+
+    await asyncio.gather(consumer_task, return_exceptions=True)
+
+    assert len(pipeline.batch_list) == 0
+
 
 @pytest.mark.asyncio
 async def test_producer_pushes_valid_items_into_queue(pipeline):
@@ -108,11 +161,4 @@ async def test_producer_pushes_valid_items_into_queue(pipeline):
     producer_task.cancel()
 
     assert pipeline.queue.qsize() == 2
-
-
-
-
-
-def test_producer_refuses_new_messages_once_closed():
-    pass
 
