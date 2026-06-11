@@ -48,12 +48,3 @@ class BinanceAdapter(ExchangeAdapter):
             'bid_quantity': bid_quantity,
             'ask_quantity': ask_quantity,
         }
-
-
-    def normalise_data(self, batch_list:list) -> list:
-        normalised_data = []
-        for data in batch_list:
-            norm_data = self.get_structure_of_data(data)
-            normalised_data.append(norm_data)
-
-        return normalised_data

@@ -45,7 +45,7 @@ class StreamPipeline:
     async def producer(self):
         try:
             async for msg in self.ws.stream():
-                if self.exchange_adapter.validate_message(msg):
+                if self.exchange_adapter.valid_message_can_pass(msg):
                     await self.queue.put(msg)
         except asyncio.CancelledError as e:
             print("asyncio.CancelledError producer, closing program: ",e)

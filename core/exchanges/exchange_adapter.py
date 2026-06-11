@@ -33,6 +33,9 @@ class ExchangeAdapter(ABC):
     def validate_message(self, msg) -> bool:
         pass
 
+    def valid_message_can_pass(self, msg) -> bool:
+        return self.validate_message(msg) and self.check_quotes_diff(msg)
+
     def get_url(self) -> str:
         return self.url
 
@@ -43,19 +46,21 @@ class ExchangeAdapter(ABC):
         normalised_data = []
         for data in batch_list:
             norm_data = self.get_structure_of_data(data)
-            normalised_data.append(norm_data)
+            # only add dictionary if there is data in it -> if empty output is false
+            if bool(norm_data):
+                normalised_data.append(norm_data)
         return normalised_data
 
 
-    def check_for_duplicates(self, msg) -> bool:
+    def check_quotes_diff(self, msg) -> bool:
         data = self.get_structure_of_data(msg)
 
         # we do not need to keep track of bid/ask quantity changes -> as new info comes in if there is a size change in the quotes
-        if (self.previous_ask_bid_value['bid'] == data['bid']) and (self.previous_ask_bid_value['ask'] == data['ask']):
+        if (self.previous_ask_bid_value['bid'] != data['bid']) or (self.previous_ask_bid_value['ask'] != data['ask']):
+            self.previous_ask_bid_value['bid'] = data['bid']
+            self.previous_ask_bid_value['ask'] = data['ask']
             return True
 
-        self.previous_ask_bid_value['bid'] = data['bid']
-        self.previous_ask_bid_value['ask'] = data['ask']
         return False
 
     def writer(self, normalised_list_of_data):
