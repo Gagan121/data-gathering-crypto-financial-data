@@ -1,11 +1,12 @@
 from core.exchanges.exchange_adapter import ExchangeAdapter
 from datetime import datetime
+from decimal import Decimal
 
 class CoinbaseAdapter(ExchangeAdapter):
-    def __init__(self, path_to_folder:str, url:str, msg:dict, exchange_name:str) -> None:
-        super().__init__(path_to_folder, exchange_name=exchange_name, url=url, msg=msg)
+    def __init__(self, path_to_folder:str, url:str, msg:dict, exchange_name:str, ticker:str) -> None:
+        super().__init__(path_to_folder, exchange_name=exchange_name, url=url, msg=msg, ticker=ticker)
 
-    def validate_message(self, msg):
+    def validate_message(self, msg) -> bool:
         return (
             isinstance(msg, dict)
             and "timestamp" in msg
@@ -20,40 +21,33 @@ class CoinbaseAdapter(ExchangeAdapter):
             and "best_ask_quantity" in msg["events"][0]["tickers"][0]
         )
 
+    def get_structure_of_data(self, data) -> dict:
+        ts = data["timestamp"]
+        sys_time = data['sys_time']
+        new_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        exch_ts_sec = int(new_dt.timestamp())
+        exch_ts_micro = new_dt.microsecond
 
-    def normalise_data(self, batch_list:list) -> list:
-        normalised_data = []
-        for data in batch_list:
-            ts = data["timestamp"]
-            sys_time = data['sys_time']
-            new_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-            exch_ts_sec = int(new_dt.timestamp())
-            exch_ts_micro = new_dt.microsecond
+        sys_ts_sec = int(sys_time)
+        sys_ts_micro = int((sys_time - sys_ts_sec) * 1_000_000)
 
-            sys_ts_sec = int(sys_time)
-            sys_ts_micro = int((sys_time - sys_ts_sec) * 1_000_000)
+        try:
+            price = Decimal(data['events'][0]['tickers'][0]['price'])
+            bid = Decimal(data['events'][0]['tickers'][0]['best_bid'])
+            ask = Decimal(data['events'][0]['tickers'][0]['best_ask'])
+            bid_quantity = Decimal(data['events'][0]['tickers'][0]['best_bid_quantity'])
+            ask_quantity = Decimal(data['events'][0]['tickers'][0]['best_ask_quantity'])
+        except (KeyError, IndexError, TypeError):
+            return dict()
 
-            try:
-                price = data['events'][0]['tickers'][0]['price']
-                bid = data['events'][0]['tickers'][0]['best_bid']
-                ask = data['events'][0]['tickers'][0]['best_ask']
-                bid_quantity = data['events'][0]['tickers'][0]['best_bid_quantity']
-                ask_quantity = data['events'][0]['tickers'][0]['best_ask_quantity']
-            except (KeyError, IndexError, TypeError):
-                continue
-
-            norm_data = {
-                'exch_ts_sec': exch_ts_sec,
-                'exch_ts_micro': exch_ts_micro,
-                'sys_ts_sec': sys_ts_sec,
-                'sys_ts_micro': sys_ts_micro,
-                'price': price,
-                'bid': bid,
-                'ask': ask,
-                'bid_quantity': bid_quantity,
-                'ask_quantity': ask_quantity,
-            }
-
-            normalised_data.append(norm_data)
-
-        return normalised_data
+        return {
+            'exch_ts_sec': exch_ts_sec,
+            'exch_ts_micro': exch_ts_micro,
+            'sys_ts_sec': sys_ts_sec,
+            'sys_ts_micro': sys_ts_micro,
+            'price': price,
+            'bid': bid,
+            'ask': ask,
+            'bid_quantity': bid_quantity,
+            'ask_quantity': ask_quantity,
+        }
