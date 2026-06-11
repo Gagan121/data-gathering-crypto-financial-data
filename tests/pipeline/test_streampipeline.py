@@ -8,6 +8,8 @@ from core.pipeline.streampipeline import StreamPipeline
 @pytest.fixture
 def adapter() -> ExchangeAdapter:
     class TestAdapter(ExchangeAdapter):
+        def get_structure_of_data(self, data) -> dict:
+            return data
         def validate_message(self, msg):
             return True
         def normalise_data(self, batch_list:list) -> list:
@@ -15,7 +17,7 @@ def adapter() -> ExchangeAdapter:
         def writer(self, normalised_list_of_data):
             return
     path_to_folder = r"D:\python_projects\data_gathering_using_websockets_finance_crypto\data"
-    return TestAdapter(path_to_folder=path_to_folder, exchange_name="Test", url="ws:test", msg={})
+    return TestAdapter(path_to_folder=path_to_folder, exchange_name="Test", url="ws:test", msg={}, ticker="TEST_TEST")
 
 @pytest.fixture
 def pipeline(adapter) -> StreamPipeline:
@@ -129,8 +131,8 @@ async def test_consumer_pushes_remaining_batch_on_cancel(pipeline:StreamPipeline
     # the limit here to reach on which a process/write occurs, if below then cancel list is pushed
     pipeline.max_size_for_batch = 4
 
-    await pipeline.queue.put({"event": 0})
-    await pipeline.queue.put({"event": 1})
+    await pipeline.queue.put({"bid":1, 'ask':1})
+    await pipeline.queue.put({"bid":2, 'ask':2})
 
     # this has to be a task not just await because it has a while loop in it
     consumer_task = asyncio.create_task(pipeline.consumer())
@@ -148,8 +150,31 @@ async def test_consumer_pushes_remaining_batch_on_cancel(pipeline:StreamPipeline
 async def test_producer_pushes_valid_items_into_queue(pipeline):
 
     async def fake_stream():
-        yield {"event":1}
-        yield {"event":2}
+        yield {"bid":1, 'ask':1}
+        yield {"bid":2, 'ask':2}
+    # hot swapping out the functions
+    pipeline.ws.stream = fake_stream
+
+
+    # ---------------------------------------------------------
+    producer_task = asyncio.create_task(pipeline.producer())
+    await asyncio.sleep(0.1)
+
+    producer_task.cancel()
+
+    assert pipeline.queue.qsize() == 2
+
+
+@pytest.mark.asyncio
+async def test_producer_pushes_valid_items_and_refused_invalid_items_into_queue(pipeline):
+
+    async def fake_stream():
+        # accept
+        yield {"bid":1, 'ask':1}
+        # refuses -> same quotes as above thus duplicates
+        yield {"bid":1, 'ask':1}
+        # accept
+        yield {"bid":2, 'ask':2}
     # hot swapping out the functions
     pipeline.ws.stream = fake_stream
 

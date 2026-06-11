@@ -53,13 +53,17 @@ class ExchangeAdapter(ABC):
 
 
     def check_quotes_diff(self, msg) -> bool:
-        data = self.get_structure_of_data(msg)
+        try:
+            # if data doesn't have the right keys
+            data = self.get_structure_of_data(msg)
 
-        # we do not need to keep track of bid/ask quantity changes -> as new info comes in if there is a size change in the quotes
-        if (self.previous_ask_bid_value['bid'] != data['bid']) or (self.previous_ask_bid_value['ask'] != data['ask']):
-            self.previous_ask_bid_value['bid'] = data['bid']
-            self.previous_ask_bid_value['ask'] = data['ask']
-            return True
+            # we do not need to keep track of bid/ask quantity changes -> as new info comes in if there is a size change in the quotes
+            if (self.previous_ask_bid_value['bid'] != data['bid']) or (self.previous_ask_bid_value['ask'] != data['ask']):
+                self.previous_ask_bid_value['bid'] = data['bid']
+                self.previous_ask_bid_value['ask'] = data['ask']
+                return True
+        except (KeyError, IndexError, TypeError):
+            pass
 
         return False
 

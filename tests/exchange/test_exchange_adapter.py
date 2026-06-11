@@ -4,9 +4,28 @@ import pytest
 from core.exchanges.exchange_adapter import ExchangeAdapter, create_base_folder
 
 @pytest.fixture
+def adapter_validate_message_is_false():
+
+    class TestAdapter(ExchangeAdapter):
+        def get_structure_of_data(self, data) -> dict:
+            return data
+        def validate_message(self, msg):
+            return False
+        def normalise_data(self, batch_list:list) -> list:
+            return batch_list
+
+
+    path_to_folder = r"D:\python_projects\data_gathering_using_websockets_finance_crypto\data"
+
+    return TestAdapter(path_to_folder=path_to_folder, exchange_name="Test", url="ws:test", msg={}, ticker="TEST_TEST")
+
+
+@pytest.fixture
 def adapter():
 
     class TestAdapter(ExchangeAdapter):
+        def get_structure_of_data(self, data) -> dict:
+            return data
         def validate_message(self, msg):
             return True
         def normalise_data(self, batch_list:list) -> list:
@@ -15,8 +34,47 @@ def adapter():
 
     path_to_folder = r"D:\python_projects\data_gathering_using_websockets_finance_crypto\data"
 
-    return TestAdapter(path_to_folder=path_to_folder, exchange_name="Test", url="ws:test", msg={})
+    return TestAdapter(path_to_folder=path_to_folder, exchange_name="Test", url="ws:test", msg={}, ticker="TEST_TEST")
 
+def test_check_quotes_diff_true_case(adapter):
+    msg = {'bid':1, 'ask':2}
+    adapter.previous_ask_bid_value = {'bid':0, 'ask':0}
+    # quotes do differ, in the init function the above is true the values are set to 0
+    assert adapter.check_quotes_diff(msg) == True
+
+def test_check_quotes_diff_false_case(adapter):
+    msg = {'bid':1, 'ask':2}
+    adapter.previous_ask_bid_value = {'bid':1, 'ask':2}
+    # quotes do not differ, the previous quotes are the same as they are now
+    assert adapter.check_quotes_diff(msg) == False
+
+# -------------------------------------------------------------------
+
+def test_valid_message_can_pass_non_duplicates_quotes(adapter):
+    msg = {'bid':1, 'ask':2}
+    adapter.previous_ask_bid_value = {'bid':0, 'ask':0}
+    # quotes do differ, in the init function the above is true the values are set to 0
+    assert adapter.valid_message_can_pass(msg) == True
+
+def test_valid_message_can_pass_duplicates_quotes(adapter):
+    msg = {'bid':1, 'ask':2}
+    adapter.previous_ask_bid_value = {'bid':1, 'ask':2}
+    # quotes do differ, in the init function the above is true the values are set to 0
+    assert adapter.valid_message_can_pass(msg) == False
+
+# -------------------------------------------------------------------------------
+
+def test_valid_message_can_pass_non_duplicates_validate_false(adapter_validate_message_is_false):
+    msg = {'bid': 1, 'ask': 2}
+    adapter_validate_message_is_false.previous_ask_bid_value = {'bid': 0, 'ask': 0}
+    # quotes do differ, in the init function the above is true the values are set to 0
+    assert adapter_validate_message_is_false.valid_message_can_pass(msg) == False
+
+def test_valid_message_can_pass_duplicates_validate_false(adapter_validate_message_is_false):
+    msg = {'bid': 1, 'ask': 2}
+    adapter_validate_message_is_false.previous_ask_bid_value = {'bid': 1, 'ask': 2}
+    # quotes do differ, in the init function the above is true the values are set to 0
+    assert adapter_validate_message_is_false.valid_message_can_pass(msg) == False
 
 def test_folder_creation(adapter):
     new_path_to_folder = create_base_folder(adapter.exchange_name, adapter.path_to_folder)
