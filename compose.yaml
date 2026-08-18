@@ -1,0 +1,11 @@
+services:
+  collector:
+    build: .
+    container_name: crypto-collector
+
+    restart: unless-stopped
+
+    volumes:
+      - ./data:/app/data
+
+    stop_grace_period: 1m

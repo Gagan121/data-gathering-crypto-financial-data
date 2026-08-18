@@ -16,8 +16,7 @@ def adapter() -> ExchangeAdapter:
             return batch_list
         def writer(self, normalised_list_of_data):
             return
-    path_to_folder = r"D:\python_projects\data_gathering_using_websockets_finance_crypto\data"
-    return TestAdapter(path_to_folder=path_to_folder, exchange_name="Test", url="ws:test", msg={}, ticker="TEST_TEST")
+    return TestAdapter(exchange_name="Test", url="ws:test", msg={}, ticker="TEST_TEST")
 
 @pytest.fixture
 def pipeline(adapter) -> StreamPipeline:

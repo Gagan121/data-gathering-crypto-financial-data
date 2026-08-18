@@ -7,7 +7,6 @@ def adapter():
     return BinanceAdapter(
         exchange_name="Binance",
         ticker="BTC_USDT",
-        path_to_folder=r"D:\python_projects\data_gathering_using_websockets_finance_crypto\data",
         url="wss://fstream.binance.com/public/ws/btcusdt@bookTicker",
         # this is required otherwise it throw error of blank message being sent -> after a couple of seconds throw error of invalid request
         msg= {

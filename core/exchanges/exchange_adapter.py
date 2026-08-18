@@ -3,19 +3,14 @@ from abc import ABC, abstractmethod
 import pandas as pd
 import os
 import time
-
-# helper function
-def create_base_folder(exchange_name:str, path_to_base_folder:str) -> str:
-    new_base_path_for_exchange = os.path.join(path_to_base_folder, exchange_name)
-    # making folder if one isn't already there, most paths will be the same area
-    if not os.path.exists(new_base_path_for_exchange):
-        os.makedirs(new_base_path_for_exchange)
-    return new_base_path_for_exchange
+from pathlib import Path
 
 class ExchangeAdapter(ABC):
-    def __init__(self, path_to_folder:str, exchange_name:str, url:str, msg:dict, ticker:str) -> None:
+    def __init__(self, exchange_name:str, url:str, msg:dict, ticker:str) -> None:
         self.normalised_list_of_data = []
-        self.path_to_folder = path_to_folder
+        self.PATH_DIR = Path("data")
+        print("new_dir:", self.PATH_DIR)
+        print("new_dir absolute:", self.PATH_DIR.resolve())
         self.exchange_name = exchange_name
         self.url = url
         self.msg = msg
@@ -74,10 +69,11 @@ class ExchangeAdapter(ABC):
                 df = pd.DataFrame(normalised_list_of_data)
 
                 filename = f"data_{self.exchange_name}_{self.ticker}_{int(time.time())}.parquet"
-
-                path_to_new_base_folder = create_base_folder(self.exchange_name, self.path_to_folder)
-                full_path_to_file = os.path.join(path_to_new_base_folder, filename)
-                df.to_parquet(path=full_path_to_file)
+                # the path package finds the folder at the highest level that is the same data -it all relative
+                new_dir = (self.PATH_DIR / self.exchange_name)
+                new_dir.mkdir(parents=True, exist_ok=True)
+                dir_to_file = new_dir / filename
+                df.to_parquet(path=dir_to_file.resolve())
                 # exit for loop
                 return
             except Exception as e:

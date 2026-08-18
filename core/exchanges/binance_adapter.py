@@ -3,8 +3,8 @@ from datetime import datetime
 from decimal import Decimal
 
 class BinanceAdapter(ExchangeAdapter):
-    def __init__(self, path_to_folder:str, url:str, msg:dict, exchange_name:str, ticker:str) -> None:
-        super().__init__(path_to_folder, exchange_name=exchange_name, url=url, msg=msg, ticker=ticker)
+    def __init__(self, url:str, msg:dict, exchange_name:str, ticker:str) -> None:
+        super().__init__(exchange_name=exchange_name, url=url, msg=msg, ticker=ticker)
 
 
     def validate_message(self, msg):

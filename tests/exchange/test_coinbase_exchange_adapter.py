@@ -7,7 +7,6 @@ def adapter():
     return CoinbaseAdapter(
         exchange_name="Coinbase",
         ticker='BTC_USD',
-        path_to_folder=r"D:\python_projects\data_gathering_using_websockets_finance_crypto\data",
         url="wss://advanced-trade-ws.coinbase.com",
         msg={
             "type": "subscribe",
