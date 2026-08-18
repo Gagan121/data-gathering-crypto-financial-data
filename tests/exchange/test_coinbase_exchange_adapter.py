@@ -1,12 +1,12 @@
 import pytest
 from core.exchanges.coinbase_adapter import CoinbaseAdapter
-
+from decimal import Decimal
 
 @pytest.fixture
 def adapter():
     return CoinbaseAdapter(
         exchange_name="Coinbase",
-        path_to_folder=r"D:\python_projects\data_gathering_using_websockets_finance_crypto\data",
+        ticker='BTC_USD',
         url="wss://advanced-trade-ws.coinbase.com",
         msg={
             "type": "subscribe",
@@ -49,8 +49,13 @@ def model_data():
 
 def test_validate_message_valid_message(adapter, model_data):
 
-    assert adapter.validate_message(model_data) == True
+    assert adapter.valid_message_can_pass(model_data) == True
 
+def test_validate_message_duplicate_prices(adapter, model_data):
+    assert adapter.valid_message_can_pass(model_data) == True
+    assert adapter.valid_message_can_pass(model_data) == False
+    model_data['events'][0]['tickers'][0]['best_bid'] = Decimal('10000')
+    assert adapter.valid_message_can_pass(model_data) == True
 
 def test_validate_message_invalid_message(adapter):
     msg = {
@@ -69,7 +74,7 @@ def test_validate_message_invalid_message(adapter):
         ]
     }
 
-    assert adapter.validate_message(msg) == False
+    assert adapter.valid_message_can_pass(msg) == False
 
 
 def test_normalise_data_correct_data(adapter, model_data):
@@ -79,24 +84,24 @@ def test_normalise_data_correct_data(adapter, model_data):
 
     model_list_of_normalised_data = [
         {
-            'ask': '60695.95',
-            'ask_quantity': '0.02210567',
-            'bid': '60695.94',
-            'bid_quantity': '0.03004871',
+            'ask': Decimal('60695.95'),
+            'ask_quantity': Decimal('0.02210567'),
+            'bid': Decimal('60695.94'),
+            'bid_quantity': Decimal('0.03004871'),
             'exch_ts_micro': 761792,
             'exch_ts_sec': 1780765543,
-            'price': '60696.8',
+            'price': Decimal('60696.8'),
             'sys_ts_micro': 0,
             'sys_ts_sec': 1734282093
         },
         {
-            'ask': '60695.95',
-            'ask_quantity': '0.02210567',
-            'bid': '60695.94',
-            'bid_quantity': '0.03004871',
+            'ask': Decimal('60695.95'),
+            'ask_quantity': Decimal('0.02210567'),
+            'bid': Decimal('60695.94'),
+            'bid_quantity': Decimal('0.03004871'),
             'exch_ts_micro': 761792,
             'exch_ts_sec': 1780765543,
-            'price': '60696.8',
+            'price': Decimal('60696.8'),
             'sys_ts_micro': 0,
             'sys_ts_sec': 1734282093
         }
@@ -127,13 +132,13 @@ def test_normalise_data_missing_data(adapter, model_data):
 
     model_list_of_normalised_data = [
         {
-            'ask': '60695.95',
-            'ask_quantity': '0.02210567',
-            'bid': '60695.94',
-            'bid_quantity': '0.03004871',
+            'ask': Decimal('60695.95'),
+            'ask_quantity': Decimal('0.02210567'),
+            'bid': Decimal('60695.94'),
+            'bid_quantity': Decimal('0.03004871'),
             'exch_ts_micro': 761792,
             'exch_ts_sec': 1780765543,
-            'price': '60696.8',
+            'price': Decimal('60696.8'),
             'sys_ts_micro': 0,
             'sys_ts_sec': 1734282093
         }
