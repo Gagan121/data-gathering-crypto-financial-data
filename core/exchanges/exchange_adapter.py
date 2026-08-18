@@ -8,6 +8,7 @@ from pathlib import Path
 class ExchangeAdapter(ABC):
     def __init__(self, exchange_name:str, url:str, msg:dict, ticker:str) -> None:
         self.normalised_list_of_data = []
+        # if data doesn't exist path()mkdir will create the whole directory path including the parent
         self.PATH_DIR = Path("data")
         print("new_dir:", self.PATH_DIR)
         print("new_dir absolute:", self.PATH_DIR.resolve())
