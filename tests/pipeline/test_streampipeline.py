@@ -8,7 +8,7 @@ from core.pipeline.streampipeline import StreamPipeline
 @pytest.fixture
 def adapter() -> ExchangeAdapter:
     class TestAdapter(ExchangeAdapter):
-        def get_structure_of_data(self, data) -> dict:
+        def restructure_data(self, data) -> dict:
             return data
         def validate_message(self, msg):
             return True

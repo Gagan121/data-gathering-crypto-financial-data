@@ -37,13 +37,13 @@ def model_data():
 
 def test_validate_message_valid_message(adapter, model_data):
 
-    assert adapter.valid_message_can_pass(model_data) == True
+    assert adapter.valid_message_can_pass_and_restructure_data(model_data) == True
 
 def test_validate_message_duplicate_prices(adapter, model_data):
-    assert adapter.valid_message_can_pass(model_data) == True
-    assert adapter.valid_message_can_pass(model_data) == False
+    assert adapter.valid_message_can_pass_and_restructure_data(model_data) == True
+    assert adapter.valid_message_can_pass_and_restructure_data(model_data) == False
     model_data['a'] = '60000'
-    assert adapter.valid_message_can_pass(model_data) == True
+    assert adapter.valid_message_can_pass_and_restructure_data(model_data) == True
 
 
 def test_validate_message_invalid_message(adapter):
@@ -57,7 +57,7 @@ def test_validate_message_invalid_message(adapter):
         'u': 10784235188342
     }
 
-    assert adapter.valid_message_can_pass(msg) == False
+    assert adapter.valid_message_can_pass_and_restructure_data(msg) == False
 
 
 def test_normalise_data_correct_data(adapter, model_data):

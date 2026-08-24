@@ -21,7 +21,7 @@ class CoinbaseAdapter(ExchangeAdapter):
             and "best_ask_quantity" in msg["events"][0]["tickers"][0]
         )
 
-    def get_structure_of_data(self, data) -> dict:
+    def restructure_data(self, data) -> dict:
         ts = data["timestamp"]
         sys_time = data['sys_time']
         new_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))

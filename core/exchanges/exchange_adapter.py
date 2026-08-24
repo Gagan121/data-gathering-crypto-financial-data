@@ -5,8 +5,20 @@ import os
 import time
 from pathlib import Path
 
+# may not need this flattern object if, we make this raw-> high,low..... -> as they would not exist
+# help flatten complex nested dictionaries
+def flatten(data):
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, dict):
+            result.update(flatten(value))
+        else:
+            result[key] = value
+
+    return result
+
 class ExchangeAdapter(ABC):
-    def __init__(self, exchange_name:str, url:str, msg:dict, ticker:str) -> None:
+    def __init__(self, exchange_name:str, url:str, msg:dict, ticker:str, heart_beat_msg:dict|None = None, heart_beat_reply_msg:dict|None = None ) -> None:
         self.normalised_list_of_data = []
         # if data doesn't exist path()mkdir will create the whole directory path including the parent
         self.PATH_DIR = Path("data")
@@ -15,44 +27,101 @@ class ExchangeAdapter(ABC):
         self.exchange_name = exchange_name
         self.url = url
         self.msg = msg
+        self.heart_beat_msg = heart_beat_msg
+        self.heart_beat_reply_msg = heart_beat_reply_msg
         self.ticker = ticker
         self.previous_ask_bid_value = {
             "bid": 0,
             "ask": 0
         }
 
+        self._access_token = ""
+        self._refresh_token = ""
+        self._token_expires_in = 0
+        self._time_token_collected = 0
+
     @abstractmethod
-    def get_structure_of_data(self, data) -> dict:
+    def restructure_data(self, data) -> dict:
         pass
 
     @abstractmethod
     def validate_message(self, msg) -> bool:
         pass
 
-    def valid_message_can_pass(self, msg) -> bool:
-        return self.validate_message(msg) and self.check_quotes_diff(msg)
+    @abstractmethod
+    def get_authentication_info(self) -> dict|None:
+        pass
+
+    @abstractmethod
+    def get_refresh_authentication_info(self) -> dict:
+        pass
+
+    @abstractmethod
+    def validate_authentication(self, authentication_message) -> bool:
+        pass
+
+    def clear_tokens(self):
+        self._access_token = ""
+        self._refresh_token = ""
+
+    def if_refresh_token_exists(self) -> bool:
+        return self._refresh_token != ""
+
+    def get_time_token_expires(self) -> int:
+        expiry_time = 0
+        try:
+            expiry_time = int(self._token_expires_in)
+        except ValueError as e:
+            print(e, "casting issue occurred")
+
+        return expiry_time
+
+    def get_time_token_collected(self) -> float:
+        return self._time_token_collected
+
+    def check_if_authentication_exist(self) -> bool:
+        return self.get_authentication_info() is None
+
+    def valid_message_can_pass_and_restructure_data(self, msg) -> dict:
+        bool_2 = False
+        bool_1 = self.validate_message(msg)
+        if bool_1:
+            # if data doesn't have the right keys
+            data = self.restructure_data(msg)
+            # data is saved on the exchange adapter for the time being as its a large piece of data, and remaking is a waste of time
+            bool_2 = self.check_quotes_diff(data)
+
+            return {
+                "valid" : (bool_1 and bool_2),
+                "data" : data
+            }
+
+        return {"valid" : False, "data" : None}
 
     def get_url(self) -> str:
         return self.url
 
-    def get_msg(self):
+    def get_data_request_msg(self):
         return self.msg
+
+    def get_heart_beat_msg(self):
+        return self.heart_beat_msg
+
+    def get_heart_beat_reply_msg(self):
+        return self.heart_beat_reply_msg
 
     def normalise_data(self, batch_list:list) -> list:
         normalised_data = []
         for data in batch_list:
-            norm_data = self.get_structure_of_data(data)
+            norm_data = self.restructure_data(data)
             # only add dictionary if there is data in it -> if empty output is false
             if bool(norm_data):
                 normalised_data.append(norm_data)
         return normalised_data
 
 
-    def check_quotes_diff(self, msg) -> bool:
+    def check_quotes_diff(self, data) -> bool:
         try:
-            # if data doesn't have the right keys
-            data = self.get_structure_of_data(msg)
-
             # we do not need to keep track of bid/ask quantity changes -> as new info comes in if there is a size change in the quotes
             if (self.previous_ask_bid_value['bid'] != data['bid']) or (self.previous_ask_bid_value['ask'] != data['ask']):
                 self.previous_ask_bid_value['bid'] = data['bid']
@@ -78,6 +147,6 @@ class ExchangeAdapter(ABC):
                 # exit for loop
                 return
             except Exception as e:
-                print("failed to write: ", e)
+                print(time.time(),"failed to write: ", e)
                 # in another thread so sleeping will not affect the thread
                 time.sleep(1)

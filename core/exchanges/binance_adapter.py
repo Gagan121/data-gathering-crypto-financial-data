@@ -18,7 +18,7 @@ class BinanceAdapter(ExchangeAdapter):
             and "B" in msg
         )
 
-    def get_structure_of_data(self, data) -> dict:
+    def restructure_data(self, data) -> dict:
         ts = data["E"]
         sys_time = data['sys_time']
         normalised_ts = ts / 1000

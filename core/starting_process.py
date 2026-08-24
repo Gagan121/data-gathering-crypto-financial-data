@@ -4,37 +4,68 @@ import sys
 
 from core.exchanges.binance_adapter import BinanceAdapter
 from core.exchanges.coinbase_adapter import CoinbaseAdapter
+from core.exchanges.deribit_adapter import DeribitAdapter
 from core.pipeline.streampipeline import StreamPipeline
 
 
 async def main():
-    coinbase_adapter = CoinbaseAdapter(
-        exchange_name="Coinbase",
-        ticker="BTC_USD",
-        url="wss://advanced-trade-ws.coinbase.com",
-        msg= {
-            "type": "subscribe",
-            "product_ids": ["BTC-USD"],
-            "channel": "ticker"
-        }
-    )
 
-
-
-    binance_adapter = BinanceAdapter(
-        exchange_name="Binance",
-        ticker="BTC_USDT",
-        url="wss://fstream.binance.com/public/ws/btcusdt@bookTicker",
-        # this is required otherwise it throw error of blank message being sent -> after a couple of seconds throw error of invalid request
-        msg= {
-            "method": "SUBSCRIBE",
-            "params":
-            [
-                "btcusdt@bookTicker"
-            ],
+    deribit_adapter = DeribitAdapter(
+        exchange_name="Deribit",
+        ticker="BTC_PERPETUAL",
+        url="wss://www.deribit.com/ws/api/v2",
+        # url="wss://test.deribit.com/ws/api/v2",
+        msg={
+            "jsonrpc": "2.0",
+            "method": "public/subscribe",
+            "id": 42,
+            "params": {
+                "channels": [
+                    "ticker.BTC-PERPETUAL.raw"
+                ]
+            }
+        },
+        heart_beat_msg={
+            "jsonrpc": "2.0",
+            "id": 10,
+            "method": "public/set_heartbeat",
+            "params": {"interval": 30}
+        },
+        heart_beat_reply_msg={
+            "jsonrpc": "2.0",
+            "method": "public/test",
+            "params": {},
             "id": 1
         }
     )
+
+
+
+    #
+    # coinbase_adapter = CoinbaseAdapter(
+    #     exchange_name="Coinbase",
+    #     ticker="BTC_USD",
+    #     url="wss://advanced-trade-ws.coinbase.com",
+    #     msg= {
+    #         "type": "subscribe",
+    #         "product_ids": ["BTC-USD"],
+    #         "channel": "ticker"
+    #     }
+    # )
+    # binance_adapter = BinanceAdapter(
+    #     exchange_name="Binance",
+    #     ticker="BTC_USDT",
+    #     url="wss://fstream.binance.com/public/ws/btcusdt@bookTicker",
+    #     # this is required otherwise it throw error of blank message being sent -> after a couple of seconds throw error of invalid request
+    #     msg= {
+    #         "method": "SUBSCRIBE",
+    #         "params":
+    #         [
+    #             "btcusdt@bookTicker"
+    #         ],
+    #         "id": 1
+    #     }
+    # )
 
 
 
@@ -50,12 +81,14 @@ async def main():
         loop.add_signal_handler(signal.SIGTERM, shutdown_task)
         loop.add_signal_handler(signal.SIGINT, shutdown_task)
 
-    stream_pipeline_0 = StreamPipeline(exchange_adapter=coinbase_adapter)
-    stream_pipeline_1 = StreamPipeline(exchange_adapter=binance_adapter)
+    # stream_pipeline_0 = StreamPipeline(exchange_adapter=coinbase_adapter)
+    # stream_pipeline_1 = StreamPipeline(exchange_adapter=binance_adapter)
+    stream_pipeline_2 = StreamPipeline(exchange_adapter=deribit_adapter)
 
     await asyncio.gather(
-        stream_pipeline_0.run(),
-        stream_pipeline_1.run()
+        # stream_pipeline_0.run(),
+        # stream_pipeline_1.run(),
+        stream_pipeline_2.run()
     )
 
 

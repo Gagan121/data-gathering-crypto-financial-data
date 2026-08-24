@@ -7,10 +7,8 @@ from core.websockets.websocket_client import WebsocketClient
 class StreamPipeline:
     def __init__(self, exchange_adapter:ExchangeAdapter):
         self.exchange_adapter = exchange_adapter
-        self.ws = WebsocketClient(
-            url=self.exchange_adapter.get_url(),
-            msg=self.exchange_adapter.get_msg()
-        )
+
+        self.ws = WebsocketClient(exchange_adapter=exchange_adapter)
 
         self.batch_list = []
         self.max_size_for_queue = 1000
@@ -45,8 +43,9 @@ class StreamPipeline:
     async def producer(self):
         try:
             async for msg in self.ws.stream():
-                if self.exchange_adapter.valid_message_can_pass(msg):
-                    await self.queue.put(msg)
+                outcome = self.exchange_adapter.valid_message_can_pass_and_restructure_data(msg)
+                if outcome['valid']:
+                    await self.queue.put(outcome['data'])
         except asyncio.CancelledError as e:
             print("asyncio.CancelledError producer, closing program: ",e)
             raise

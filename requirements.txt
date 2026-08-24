@@ -3,3 +3,4 @@ pyarrow
 pandas
 pytest
 pytest-asyncio
+python-dotenv

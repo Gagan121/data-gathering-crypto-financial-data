@@ -7,7 +7,7 @@ from core.exchanges.exchange_adapter import ExchangeAdapter
 def adapter_validate_message_is_false():
 
     class TestAdapter(ExchangeAdapter):
-        def get_structure_of_data(self, data) -> dict:
+        def restructure_data(self, data) -> dict:
             return data
         def validate_message(self, msg):
             return False
@@ -22,7 +22,7 @@ def adapter_validate_message_is_false():
 def adapter():
 
     class TestAdapter(ExchangeAdapter):
-        def get_structure_of_data(self, data) -> dict:
+        def restructure_data(self, data) -> dict:
             return data
         def validate_message(self, msg):
             return True
@@ -49,13 +49,13 @@ def test_valid_message_can_pass_non_duplicates_quotes(adapter):
     msg = {'bid':1, 'ask':2}
     adapter.previous_ask_bid_value = {'bid':0, 'ask':0}
     # quotes do differ, in the init function the above is true the values are set to 0
-    assert adapter.valid_message_can_pass(msg) == True
+    assert adapter.valid_message_can_pass_and_restructure_data(msg) == True
 
 def test_valid_message_can_pass_duplicates_quotes(adapter):
     msg = {'bid':1, 'ask':2}
     adapter.previous_ask_bid_value = {'bid':1, 'ask':2}
     # quotes do differ, in the init function the above is true the values are set to 0
-    assert adapter.valid_message_can_pass(msg) == False
+    assert adapter.valid_message_can_pass_and_restructure_data(msg) == False
 
 # -------------------------------------------------------------------------------
 
@@ -63,13 +63,13 @@ def test_valid_message_can_pass_non_duplicates_validate_false(adapter_validate_m
     msg = {'bid': 1, 'ask': 2}
     adapter_validate_message_is_false.previous_ask_bid_value = {'bid': 0, 'ask': 0}
     # quotes do differ, in the init function the above is true the values are set to 0
-    assert adapter_validate_message_is_false.valid_message_can_pass(msg) == False
+    assert adapter_validate_message_is_false.valid_message_can_pass_and_restructure_data(msg) == False
 
 def test_valid_message_can_pass_duplicates_validate_false(adapter_validate_message_is_false):
     msg = {'bid': 1, 'ask': 2}
     adapter_validate_message_is_false.previous_ask_bid_value = {'bid': 1, 'ask': 2}
     # quotes do differ, in the init function the above is true the values are set to 0
-    assert adapter_validate_message_is_false.valid_message_can_pass(msg) == False
+    assert adapter_validate_message_is_false.valid_message_can_pass_and_restructure_data(msg) == False
 
 
 def test_write_data_to_file(adapter):
