@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import time
 from pathlib import Path
+import re
 
 # may not need this flattern object if, we make this raw-> high,low..... -> as they would not exist
 # help flatten complex nested dictionaries
@@ -18,8 +19,9 @@ def flatten(data):
     return result
 
 class ExchangeAdapter(ABC):
-    def __init__(self, exchange_name:str, url:str, msg:dict, ticker:str, heart_beat_msg:dict|None = None, heart_beat_reply_msg:dict|None = None ) -> None:
+    def __init__(self, channels:list, exchange_name:str, url:str, msg:dict, ticker:str, heart_beat_msg:dict|None = None, heart_beat_reply_msg:dict|None = None ) -> None:
         self.normalised_list_of_data = []
+        self.channels = channels
         # if data doesn't exist path()mkdir will create the whole directory path including the parent
         self.PATH_DIR = Path("data")
         print("new_dir:", self.PATH_DIR)
@@ -41,7 +43,7 @@ class ExchangeAdapter(ABC):
         self._time_token_collected = 0
 
     @abstractmethod
-    def restructure_data(self, data) -> dict:
+    def restructure_data(self, data) -> dict|list:
         pass
 
     @abstractmethod
@@ -59,6 +61,12 @@ class ExchangeAdapter(ABC):
     @abstractmethod
     def validate_authentication(self, authentication_message) -> bool:
         pass
+
+    def get_channels(self) -> list:
+        return self.channels
+
+    def get_msg_request(self) -> dict:
+        return self.msg
 
     def clear_tokens(self):
         self._access_token = ""
@@ -83,20 +91,29 @@ class ExchangeAdapter(ABC):
         return self.get_authentication_info() is None
 
     def valid_message_can_pass_and_restructure_data(self, msg) -> dict:
-        bool_2 = False
+        # bool_2 = False
         bool_1 = self.validate_message(msg)
         if bool_1:
             # if data doesn't have the right keys
             data = self.restructure_data(msg)
+            # encase our data is empty then
+            bool_2 = bool(data)
             # data is saved on the exchange adapter for the time being as its a large piece of data, and remaking is a waste of time
-            bool_2 = self.check_quotes_diff(data)
+            # dict means tickers, list means trades
+            """
+            # if we ignore the duplication and just see what comes in for now we can see if any patterns come up
+            # if isinstance(data, dict):
+            #     bool_2 = self.check_quotes_diff(data)
+            # else:
+            #     bool_2 = True
+            """
 
             return {
                 "valid" : (bool_1 and bool_2),
                 "data" : data
             }
 
-        return {"valid" : False, "data" : None}
+        return {"valid" : False, "data" : dict()}
 
     def get_url(self) -> str:
         return self.url
@@ -132,15 +149,16 @@ class ExchangeAdapter(ABC):
 
         return False
 
-    def writer(self, normalised_list_of_data):
+    def writer(self, normalised_list_of_data:list) -> None:
         # try to write 3 times before giving up
         for i in range(3):
             try:
                 df = pd.DataFrame(normalised_list_of_data)
-
-                filename = f"data_{self.exchange_name}_{self.ticker}_{int(time.time())}.parquet"
+                data = normalised_list_of_data[-1]["channel"]
+                name_of_data_set = re.sub("[.-]", "_", data)
+                filename = f"data_{self.exchange_name}_{name_of_data_set}_{int(time.time())}.parquet"
                 # the path package finds the folder at the highest level that is the same data -it all relative
-                new_dir = (self.PATH_DIR / self.exchange_name)
+                new_dir = (self.PATH_DIR / self.exchange_name/ name_of_data_set )
                 new_dir.mkdir(parents=True, exist_ok=True)
                 dir_to_file = new_dir / filename
                 df.to_parquet(path=dir_to_file.resolve())

@@ -4,13 +4,14 @@ import sys
 
 from core.exchanges.binance_adapter import BinanceAdapter
 from core.exchanges.coinbase_adapter import CoinbaseAdapter
-from core.exchanges.deribit_adapter import DeribitAdapter
+from core.exchanges.deribit_perpetuals_adapter import DeribitPerpetualAdapter
 from core.pipeline.streampipeline import StreamPipeline
 
 
 async def main():
 
-    deribit_adapter = DeribitAdapter(
+    deribit_adapter = DeribitPerpetualAdapter(
+        channels = ["trades.BTC-PERPETUAL.raw","ticker.BTC-PERPETUAL.raw",],
         exchange_name="Deribit",
         ticker="BTC_PERPETUAL",
         url="wss://www.deribit.com/ws/api/v2",
@@ -21,7 +22,7 @@ async def main():
             "id": 42,
             "params": {
                 "channels": [
-                    "ticker.BTC-PERPETUAL.raw"
+                    "trades.BTC-PERPETUAL.raw","ticker.BTC-PERPETUAL.raw"
                 ]
             }
         },

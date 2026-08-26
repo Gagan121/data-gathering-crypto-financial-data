@@ -1,13 +1,8 @@
-import time
-from datetime import datetime
-from decimal import Decimal
-from core.exchanges.exchange_adapter import ExchangeAdapter,flatten
-import os
-from dotenv import load_dotenv
-load_dotenv()
+from exchange_adapter import ExchangeAdapter
 
 
-class DeribitAdapter(ExchangeAdapter):
+
+class DeribitOptionsAdapter(ExchangeAdapter):
     def __init__(self, url:str, msg:dict, exchange_name:str, ticker:str, heart_beat_msg:dict, heart_beat_reply_msg:dict) -> None:
         super().__init__(exchange_name=exchange_name, url=url, msg=msg, ticker=ticker, heart_beat_msg=heart_beat_msg, heart_beat_reply_msg=heart_beat_reply_msg)
         load_dotenv()

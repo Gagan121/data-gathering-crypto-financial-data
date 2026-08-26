@@ -22,7 +22,8 @@ class WebsocketClient:
             await self.ws.close()
 
     async def stream(self):
-        delay = 1
+        # worth noting that scheduled maintenance can knock off connection and cause issues with API rate limiting
+        delay = 10
         try:
             while True:
                 try:
@@ -34,7 +35,6 @@ class WebsocketClient:
                     # await self.authenticate()
                     await self.sent_msg_to_websocket(self.exchange_adapter.get_data_request_msg())
                     await self.set_heart_beat()
-                    delay = 1
                     async for message in self.ws:
 
                         if (self.token_death_timestamp != 0) and (time.time() > self.token_death_timestamp):
@@ -45,6 +45,8 @@ class WebsocketClient:
                         data['sys_time'] = sys_time
 
                         await self.filter_message_and_respond(data)
+
+                        delay = 10
 
                         yield data
                 except Exception as e:
