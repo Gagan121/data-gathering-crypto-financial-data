@@ -6,3 +6,4 @@ notes.txt
 coinbase_data
 data
 __pycache__
+*.run

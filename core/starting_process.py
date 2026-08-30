@@ -4,26 +4,29 @@ import sys
 
 from core.exchanges.binance_adapter import BinanceAdapter
 from core.exchanges.coinbase_adapter import CoinbaseAdapter
-from core.exchanges.deribit_perpetuals_adapter import DeribitPerpetualAdapter
+# from core.exchanges.deribit_perpetuals_adapter import DeribitPerpetualAdapter
+from core.exchanges.deribit_options_adapter import DeribitOptionsAdapter
+from core.exchanges.exchange_adapter import ExchangeAdapter
 from core.pipeline.streampipeline import StreamPipeline
 
 
 async def main():
 
-    deribit_adapter = DeribitPerpetualAdapter(
-        channels = ["trades.BTC-PERPETUAL.raw","ticker.BTC-PERPETUAL.raw",],
-        exchange_name="Deribit",
-        ticker="BTC_PERPETUAL",
-        url="wss://www.deribit.com/ws/api/v2",
+    deribit_option_adapters = DeribitOptionsAdapter.generate_deribit_option_adapters(
+        interval_type="agg2",
+        currency="BTC",
+        expired="false",
+        data_types=["ticker", "trades"],
+        exchange_name="Deribit_Options",
+        websocket_url="wss://www.deribit.com/ws/api/v2",
+        base_url = "https://test.deribit.com/api/v2/",
         # url="wss://test.deribit.com/ws/api/v2",
         msg={
             "jsonrpc": "2.0",
             "method": "public/subscribe",
             "id": 42,
             "params": {
-                "channels": [
-                    "trades.BTC-PERPETUAL.raw","ticker.BTC-PERPETUAL.raw"
-                ]
+                "channels": []
             }
         },
         heart_beat_msg={
@@ -39,6 +42,38 @@ async def main():
             "id": 1
         }
     )
+
+
+
+    # deribit_adapter = DeribitPerpetualAdapter(
+    #     channels = ["trades.BTC-PERPETUAL.raw","ticker.BTC-PERPETUAL.raw",],
+    #     exchange_name="Deribit",
+    #     ticker="BTC_PERPETUAL",
+    #     url="wss://www.deribit.com/ws/api/v2",
+    #     # url="wss://test.deribit.com/ws/api/v2",
+    #     msg={
+    #         "jsonrpc": "2.0",
+    #         "method": "public/subscribe",
+    #         "id": 42,
+    #         "params": {
+    #             "channels": [
+    #                 "trades.BTC-PERPETUAL.raw","ticker.BTC-PERPETUAL.raw"
+    #             ]
+    #         }
+    #     },
+    #     heart_beat_msg={
+    #         "jsonrpc": "2.0",
+    #         "id": 10,
+    #         "method": "public/set_heartbeat",
+    #         "params": {"interval": 30}
+    #     },
+    #     heart_beat_reply_msg={
+    #         "jsonrpc": "2.0",
+    #         "method": "public/test",
+    #         "params": {},
+    #         "id": 1
+    #     }
+    # )
 
 
 
@@ -84,12 +119,20 @@ async def main():
 
     # stream_pipeline_0 = StreamPipeline(exchange_adapter=coinbase_adapter)
     # stream_pipeline_1 = StreamPipeline(exchange_adapter=binance_adapter)
-    stream_pipeline_2 = StreamPipeline(exchange_adapter=deribit_adapter)
+    # stream_pipeline_2 = StreamPipeline(exchange_adapter=deribit_adapter)
+    # True if information is there
+    if not (bool(deribit_option_adapters)):
+        return
 
+    pipelines = [
+        StreamPipeline(adapter) for adapter in deribit_option_adapters
+    ]
     await asyncio.gather(
         # stream_pipeline_0.run(),
         # stream_pipeline_1.run(),
-        stream_pipeline_2.run()
+        # stream_pipeline_2.run()
+        # stream_pipeline_3.run()
+        *(pipeline.run() for pipeline in pipelines),
     )
 
 

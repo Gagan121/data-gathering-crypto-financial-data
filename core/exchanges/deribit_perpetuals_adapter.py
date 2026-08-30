@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 from decimal import Decimal
-from core.exchanges.exchange_adapter import ExchangeAdapter,flatten
+from core.exchanges.exchange_adapter import ExchangeAdapter,flatten, convert_to_decimal_and_quantize
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -117,59 +117,36 @@ class DeribitPerpetualAdapter(ExchangeAdapter):
         new_data.pop('instrument_name', None)
 
         try:
-            bid = Decimal(new_data['best_bid_price'])
-            ask = Decimal(new_data['best_ask_price'])
-            bid_quantity = Decimal(new_data['best_bid_amount'])
-            ask_quantity = Decimal(new_data['best_ask_amount'])
-            high = Decimal(new_data['high'])
-            low = Decimal(new_data['low'])
-            price_change = Decimal(new_data['price_change'])
-            volume = Decimal(new_data['volume'])
-            volume_usd = Decimal(new_data['volume_usd'])
-            volume_notional = Decimal(new_data['volume_notional'])
-            index_price = Decimal(new_data['index_price'])
-            last_price = Decimal(new_data['last_price'])
-            settlement_price = Decimal(new_data['settlement_price'])
-            min_price = Decimal(new_data['min_price'])
-            max_price = Decimal(new_data['max_price'])
-            open_interest = Decimal(new_data['open_interest'])
-            mark_price = Decimal(new_data['mark_price'])
-            interest_value = Decimal(new_data['interest_value'])
-            current_funding = Decimal(new_data['current_funding'])
-            estimated_delivery_price = Decimal(new_data['estimated_delivery_price'])
-            funding_8h = Decimal(new_data['funding_8h'])
-        #     need to add more points of data, funding rate and other stuff
-        except (KeyError, IndexError, TypeError):
-            return dict()
-        # the values are restricted to the number of decimal points used
-        return  {
-            "channel" : data['params']['channel'],
+            return {"channel" : data['params']['channel'],
             'exch_ts_sec': exch_ts_sec,
             'exch_ts_micro': exch_ts_micro,
             'sys_ts_sec': sys_ts_sec,
             'sys_ts_micro': sys_ts_micro,
-            'bid': bid.quantize(Decimal("0.00000001")),
-            'ask': ask.quantize(Decimal("0.00000001")),
-            'bid_quantity': bid_quantity.quantize(Decimal("0.000000001")),
-            'ask_quantity': ask_quantity.quantize(Decimal("0.000000001")),
-            'high' : high.quantize(Decimal("0.00000001")),
-            'low' : low.quantize(Decimal("0.00000001")),
-            'price_change' : price_change.quantize(Decimal("0.000000000001")),
-            'volume' : volume.quantize(Decimal("0.00000000001")),
-            'volume_usd' : volume_usd.quantize(Decimal("0.0000000001")),
-            'volume_notional' : volume_notional.quantize(Decimal("0.0000000001")),
-            'index_price' : index_price.quantize(Decimal("0.00000001")),
-            'last_price' : last_price.quantize(Decimal("0.00000001")),
-            'settlement_price' : settlement_price.quantize(Decimal("0.00000001")),
-            'min_price' : min_price.quantize(Decimal("0.00000001")),
-            'max_price' : max_price.quantize(Decimal("0.00000001")),
-            'open_interest' : open_interest.quantize(Decimal("0.0000000000000001")),
-            'mark_price' : mark_price.quantize(Decimal("0.00000001")),
-            'interest_value' : interest_value.quantize(Decimal("0.00000000000000000001")),
-            'current_funding' : current_funding.quantize(Decimal("0.000000000000000000001")),
-            'estimated_delivery_price' : estimated_delivery_price.quantize(Decimal("0.000000000001")),
-            'funding_8h' : funding_8h.quantize(Decimal("0.0000000000000001")),
-        }
+            'bid' : convert_to_decimal_and_quantize(new_data['best_bid_price']),
+            'ask' : convert_to_decimal_and_quantize(new_data['best_ask_price']),
+            'bid_quantity' : convert_to_decimal_and_quantize(new_data['best_bid_amount']),
+            'ask_quantity' : convert_to_decimal_and_quantize(new_data['best_ask_amount']),
+            'high' : convert_to_decimal_and_quantize(new_data['high']),
+            'low' : convert_to_decimal_and_quantize(new_data['low']),
+            'price_change' : convert_to_decimal_and_quantize(new_data['price_change']),
+            'volume' : convert_to_decimal_and_quantize(new_data['volume']),
+            'volume_usd' : convert_to_decimal_and_quantize(new_data['volume_usd']),
+            'volume_notional' : convert_to_decimal_and_quantize(new_data['volume_notional']),
+            'index_price' : convert_to_decimal_and_quantize(new_data['index_price']),
+            'last_price' : convert_to_decimal_and_quantize(new_data['last_price']),
+            'settlement_price' : convert_to_decimal_and_quantize(new_data['settlement_price']),
+            'min_price' : convert_to_decimal_and_quantize(new_data['min_price']),
+            'max_price' : convert_to_decimal_and_quantize(new_data['max_price']),
+            'open_interest' : convert_to_decimal_and_quantize(new_data['open_interest']),
+            'mark_price' : convert_to_decimal_and_quantize(new_data['mark_price']),
+            'interest_value' : convert_to_decimal_and_quantize(new_data['interest_value']),
+            'current_funding' : convert_to_decimal_and_quantize(new_data['current_funding']),
+            'estimated_delivery_price' : convert_to_decimal_and_quantize(new_data['estimated_delivery_price']),
+            'funding_8h' : convert_to_decimal_and_quantize(new_data['funding_8h']),
+            }
+        #     need to add more points of data, funding rate and other stuff
+        except (KeyError, IndexError, TypeError):
+            return dict()
 
 
     def restructure_trade_data(self, data) -> list:
@@ -194,18 +171,18 @@ class DeribitPerpetualAdapter(ExchangeAdapter):
                     'sys_ts_micro' : sys_ts_micro,
                     'exch_ts_sec' : exch_ts_sec,
                     'exch_ts_micro' : exch_ts_micro,
-                    'price' : Decimal(trade['price']).quantize(Decimal("0.00000001")),
+                    'price' : convert_to_decimal_and_quantize(trade['price']),
                     'direction' : trade['direction'],
-                    'index_price' : Decimal(trade['index_price']).quantize(Decimal("0.00000001")),
+                    'index_price' : convert_to_decimal_and_quantize(trade['index_price']),
                     'instrument_name' : trade['instrument_name'],
                     'trade_seq' : trade['trade_seq'],
-                    'amount' : Decimal(trade['amount']).quantize(Decimal("0.00000001")),
-                    'mark_price' : Decimal(trade['mark_price']).quantize(Decimal("0.00000001")),
+                    'amount' : convert_to_decimal_and_quantize(trade['amount']),
+                    'mark_price' : convert_to_decimal_and_quantize(trade['mark_price']),
                     'tick_direction' : int(trade['tick_direction']),
-                    'starbase_match_id' : Decimal(trade['starbase_match_id']).quantize(Decimal("0.00000001")),
-                    'trade_id' : Decimal(trade['trade_id']).quantize(Decimal("0.00000001")),
-                    'contracts' : Decimal(trade['contracts']).quantize(Decimal("0.00000001")),
-                    'starbase_timestamp' : Decimal(trade['starbase_timestamp']).quantize(Decimal("0.00000001")),
+                    'starbase_match_id' : convert_to_decimal_and_quantize(trade['starbase_match_id']),
+                    'trade_id' : convert_to_decimal_and_quantize(trade['trade_id']),
+                    'contracts' : convert_to_decimal_and_quantize(trade['contracts']),
+                    'starbase_timestamp' : convert_to_decimal_and_quantize(trade['starbase_timestamp']),
                 }
             except (KeyError, IndexError, TypeError):
                 continue

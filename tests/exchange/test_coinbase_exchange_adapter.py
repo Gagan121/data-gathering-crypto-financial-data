@@ -5,6 +5,7 @@ from decimal import Decimal
 @pytest.fixture
 def adapter():
     return CoinbaseAdapter(
+        channels=["ticker"],
         exchange_name="Coinbase",
         ticker='BTC_USD',
         url="wss://advanced-trade-ws.coinbase.com",

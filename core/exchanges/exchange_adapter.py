@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import time
 from pathlib import Path
+from decimal import Decimal
 import re
 
 # may not need this flattern object if, we make this raw-> high,low..... -> as they would not exist
@@ -17,6 +18,25 @@ def flatten(data):
             result[key] = value
 
     return result
+
+def convert_to_decimal_and_quantize(value):
+    try:
+        # if the value is none then put 0 otherwise use the original value
+        if value is None:
+            return_value = Decimal(0)
+        elif isinstance(value, float):
+            return_value = Decimal(value).quantize(Decimal("0.0000001"))
+        elif isinstance(value, int):
+            return_value = value
+        else:
+            return_value = Decimal(value)
+
+    except Exception as e:
+        print(e, " converting value to Decimal ", value )
+        return_value = value
+
+    return return_value
+
 
 class ExchangeAdapter(ABC):
     def __init__(self, channels:list, exchange_name:str, url:str, msg:dict, ticker:str, heart_beat_msg:dict|None = None, heart_beat_reply_msg:dict|None = None ) -> None:
@@ -155,7 +175,17 @@ class ExchangeAdapter(ABC):
             try:
                 df = pd.DataFrame(normalised_list_of_data)
                 data = normalised_list_of_data[-1]["channel"]
-                name_of_data_set = re.sub("[.-]", "_", data)
+                # convert all
+                name_of_data_set = re.sub(r"[.-]", "_", data)
+                # remove duplicate ticker name
+                name_of_data_set = re.sub(self.ticker, "", name_of_data_set)
+                # remove trailing characters in front and behind
+                name_of_data_set = re.sub(r'^[^a-zA-Z0-9._-]+|[^a-zA-Z0-9._-]+$', '', name_of_data_set)
+
+                name_of_data_set = f"{self.ticker}_{name_of_data_set}"
+
+                name_of_data_set = re.sub("__", "_", name_of_data_set)
+
                 filename = f"data_{self.exchange_name}_{name_of_data_set}_{int(time.time())}.parquet"
                 # the path package finds the folder at the highest level that is the same data -it all relative
                 new_dir = (self.PATH_DIR / self.exchange_name/ name_of_data_set )

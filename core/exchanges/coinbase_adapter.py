@@ -3,8 +3,17 @@ from datetime import datetime
 from decimal import Decimal
 
 class CoinbaseAdapter(ExchangeAdapter):
-    def __init__(self, url:str, msg:dict, exchange_name:str, ticker:str) -> None:
-        super().__init__(exchange_name=exchange_name, url=url, msg=msg, ticker=ticker)
+    def get_authentication_info(self) -> dict | None:
+        pass
+
+    def get_refresh_authentication_info(self) -> dict:
+        pass
+
+    def validate_authentication(self, authentication_message) -> bool:
+        pass
+
+    def __init__(self,channels:list, url:str, msg:dict, exchange_name:str, ticker:str) -> None:
+        super().__init__(channels=channels, exchange_name=exchange_name, url=url, msg=msg, ticker=ticker)
 
     def validate_message(self, msg) -> bool:
         return (

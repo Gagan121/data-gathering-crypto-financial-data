@@ -12,8 +12,8 @@ class StreamPipeline:
         self.ws = WebsocketClient(exchange_adapter=exchange_adapter)
 
         self.batch_list = []
-        self.max_size_for_queue = 1000
-        self.max_size_for_batch = 1000
+        self.max_size_for_queue = 500
+        self.max_size_for_batch = 500
 
         self.queue = dict()
         self.batch_list = dict()
@@ -57,12 +57,13 @@ class StreamPipeline:
             async for msg in self.ws.stream():
                 outcome = self.exchange_adapter.valid_message_can_pass_and_restructure_data(msg)
                 if outcome['valid']:
-                    # channel = ""
+                    # channel = "" -trades
                     if isinstance(outcome['data'],list):
                         channel = outcome['data'][-1]['channel']
                         for trade in outcome['data']:
                             await self.queue[channel].put(trade)
                     else:
+                        # tickers
                         channel = outcome["data"]['channel']
                         await self.queue[channel].put(outcome['data'])
 

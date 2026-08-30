@@ -1,6 +1,11 @@
+import time
+
 import pytest
 from core.exchanges.deribit_perpetuals_adapter import DeribitPerpetualAdapter
 from decimal import Decimal
+import json
+from core.websockets.websocket_client import WebsocketClient
+
 
 @pytest.fixture
 def adapter_ticker():
@@ -147,6 +152,46 @@ def model_data_trades():
         'sys_time': 1787738702.5461586
     }
 
+# this could take some time to run -> the timer between heartbeat is 30 seconds
+@pytest.mark.asyncio
+async def test_heartbeat(adapter_ticker):
+    wc = WebsocketClient(exchange_adapter=adapter_ticker)
+
+    await wc.connect()
+    # creates the authentication for a year
+    await wc.set_heart_beat()
+    start = time.time()
+
+    counter = 0
+    try:
+        async for message in wc.ws:
+            data = json.loads(message)
+
+            await wc.filter_message_and_respond(data)
+
+            if ("method" in data) and (data["method"] == "heartbeat"):
+                time_take = time.time() - start
+                start = time.time()
+                # print(time_take)
+                counter += 1
+
+            if counter >= 3:
+                break
+    finally:
+        await wc.ws.close()
+
+    assert counter >= 3
+
+
+@pytest.mark.asyncio
+async def test_authenticate(adapter_ticker):
+    wc = WebsocketClient(exchange_adapter=adapter_ticker)
+
+    await wc.connect()
+    # creates the authentication for a year
+    await wc.authenticate()
+
+    assert adapter_ticker.if_refresh_token_exists() == True
 
 def test_valid_message_ticker(adapter_ticker, model_data_ticker):
     outcome = adapter_ticker.valid_message_can_pass_and_restructure_data(model_data_ticker)
