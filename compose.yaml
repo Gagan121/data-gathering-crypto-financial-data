@@ -1,6 +1,8 @@
 services:
   collector:
     build: .
+    env_file:
+      - .env
     container_name: crypto-collector
 
     restart: unless-stopped

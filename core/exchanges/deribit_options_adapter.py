@@ -20,7 +20,7 @@ class DeribitOptionsAdapter(ExchangeAdapter):
                          heart_beat_msg=heart_beat_msg, heart_beat_reply_msg=heart_beat_reply_msg)
         load_dotenv()
 
-        self._client_id = os.getenv("DERIBIT_PERPERTUAL_CLIENT_ID")
+        self._client_id = os.getenv("DERIBIT_PERPETUAL_CLIENT_ID")
         self._client_secret = os.getenv("DERIBIT_PERPETUAL_CLIENT_SECRET")
 
     @classmethod
