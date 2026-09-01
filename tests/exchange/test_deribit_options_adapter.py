@@ -1,7 +1,8 @@
 import time
-
+import re
 import pytest
 from core.exchanges.deribit_options_adapter import DeribitOptionsAdapter
+from core.rest_requests.rest_client_requests import RestClient
 from decimal import Decimal
 import json
 from core.websockets.websocket_client import WebsocketClient
@@ -150,6 +151,89 @@ def model_data_trades():
         },
         'sys_time': 1788124245.012731
     }
+
+
+
+def test_rest_request_to_exchange_to_get_instruments():
+    data = {
+        'currency': "BTC",
+        'expired': "false",
+    }
+    base_url = "https://www.deribit.com/api/v2/"
+    rest_client = RestClient()
+    information = DeribitOptionsAdapter.get_instruments(rest_client=rest_client, base_url=base_url, data=data)
+    # function below does similar logic and there is a ratelimit on how many times you can call the function above, thus sleep gives a break.
+    time.sleep(1)
+
+    assert (isinstance(information, dict) and "result" in information and isinstance(information["result"], list) and len(information["result"]) > 0)
+    # checking there is data in information dict at least details about the instrument names
+    assert ("instrument_name" in information["result"][0]) and ("BTC" in information["result"][0]["instrument_name"])
+    assert ("instrument_name" in information["result"][-1]) and ("BTC" in information["result"][-1]["instrument_name"])
+
+
+
+def test_helper_function_to_make_multiple_adapters():
+    deribit_option_adapters = DeribitOptionsAdapter.generate_deribit_option_adapters(
+        interval_type="agg2",
+        currency="BTC",
+        expired="false",
+        data_types=["ticker", "trades"],
+        exchange_name="Deribit_Options",
+        websocket_url="wss://www.deribit.com/ws/api/v2",
+        base_url = "https://www.deribit.com/api/v2/",
+        # url="wss://test.deribit.com/ws/api/v2",
+        msg={
+            "jsonrpc": "2.0",
+            "method": "public/subscribe",
+            "id": 42,
+            "params": {
+                "channels": []
+            }
+        },
+        heart_beat_msg={
+            "jsonrpc": "2.0",
+            "id": 10,
+            "method": "public/set_heartbeat",
+            "params": {"interval": 30}
+        },
+        heart_beat_reply_msg={
+            "jsonrpc": "2.0",
+            "method": "public/test",
+            "params": {},
+            "id": 1
+        }
+    )
+    channel_is_option = True
+    channel_number_under_limit = True
+    channel_category = {
+        "trades":0,
+        "ticker":0
+    }
+    channel_under_same_currency = True
+    list_of_channels = []
+    for deribit_option_adapter in deribit_option_adapters:
+
+        channel_number_under_limit &= len(deribit_option_adapter.msg['params']['channels']) < 500
+
+        for channel in deribit_option_adapter.msg['params']['channels']:
+            if "trades" in channel:
+                channel_category['trades'] += 1
+            elif "ticker" in channel:
+                channel_category['ticker'] += 1
+
+            channel_under_same_currency &= ("BTC" in channel)
+            channel_is_option &= bool(re.search(r"-\d+\w+\d+-\d+", channel))
+            list_of_channels.append(channel)
+
+    assert len(list_of_channels) > 0
+    # no duplicates all channels have unique values
+    assert len(list_of_channels) == len(set(list_of_channels))
+    assert channel_category['trades'] == channel_category['ticker']
+    assert channel_is_option
+    assert channel_number_under_limit
+    assert channel_under_same_currency
+
+
 
 # this could take some time to run -> the timer between heartbeat is 30 seconds
 @pytest.mark.asyncio

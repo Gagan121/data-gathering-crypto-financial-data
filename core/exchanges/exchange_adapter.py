@@ -54,7 +54,9 @@ class ExchangeAdapter(ABC):
         self.ticker = ticker
         self.previous_ask_bid_value = {
             "bid": 0,
-            "ask": 0
+            "ask": 0,
+            "bid_quantity": 0,
+            "ask_quantity": 0
         }
 
         self._access_token = ""
@@ -160,9 +162,15 @@ class ExchangeAdapter(ABC):
     def check_quotes_diff(self, data) -> bool:
         try:
             # we do not need to keep track of bid/ask quantity changes -> as new info comes in if there is a size change in the quotes
-            if (self.previous_ask_bid_value['bid'] != data['bid']) or (self.previous_ask_bid_value['ask'] != data['ask']):
+            if ((self.previous_ask_bid_value['bid'] != data['bid'])
+                    or (self.previous_ask_bid_value['ask'] != data['ask'])
+                    or (self.previous_ask_bid_value['ask_quantity'] != data['ask_quantity'])
+                    or (self.previous_ask_bid_value['bid_quantity'] != data['bid_quantity'])
+            ):
                 self.previous_ask_bid_value['bid'] = data['bid']
                 self.previous_ask_bid_value['ask'] = data['ask']
+                self.previous_ask_bid_value['bid_quantity'] = data['bid_quantity']
+                self.previous_ask_bid_value['ask_quantity'] = data['ask_quantity']
                 return True
         except (KeyError, IndexError, TypeError):
             pass

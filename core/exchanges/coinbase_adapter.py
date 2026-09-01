@@ -31,6 +31,10 @@ class CoinbaseAdapter(ExchangeAdapter):
         )
 
     def restructure_data(self, data) -> dict:
+
+        if 'exch_ts_sec' in data:
+            return data
+
         ts = data["timestamp"]
         sys_time = data['sys_time']
         new_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
@@ -46,10 +50,12 @@ class CoinbaseAdapter(ExchangeAdapter):
             ask = Decimal(data['events'][0]['tickers'][0]['best_ask'])
             bid_quantity = Decimal(data['events'][0]['tickers'][0]['best_bid_quantity'])
             ask_quantity = Decimal(data['events'][0]['tickers'][0]['best_ask_quantity'])
+            channel = data["channel"]
         except (KeyError, IndexError, TypeError):
             return dict()
 
         return {
+            "channel": channel,
             'exch_ts_sec': exch_ts_sec,
             'exch_ts_micro': exch_ts_micro,
             'sys_ts_sec': sys_ts_sec,
