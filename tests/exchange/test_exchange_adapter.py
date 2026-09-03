@@ -21,7 +21,7 @@ def adapter_validate_message_is_false():
             return batch_list
 
 
-    return TestAdapter(channels=["ticker"], exchange_name="Test", url="ws:test", msg={}, ticker="TEST_TEST")
+    return TestAdapter(channels=["ticker"], exchange_name="Test", websocket_url="ws:test", msg={}, ticker="TEST_TEST")
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def adapter():
         def normalise_data(self, batch_list:list) -> list:
             return batch_list
 
-    return TestAdapter(channels=["ticker"], exchange_name="Test", url="ws:test", msg={}, ticker="TEST_TEST")
+    return TestAdapter(channels=["ticker"], exchange_name="Test", websocket_url="ws:test", msg={}, ticker="TEST_TEST")
 
 # def test_check_quotes_diff_true_case(adapter):
 #     msg = {'bid':1, 'ask':2}

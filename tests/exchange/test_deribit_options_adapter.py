@@ -1,7 +1,7 @@
 import time
 import re
 import pytest
-from core.exchanges.deribit_options_adapter import DeribitOptionsAdapter
+from core.complex_exchanges.deribit_options_adapter import DeribitOptionsAdapter
 from core.rest_requests.rest_client_requests import RestClient
 from decimal import Decimal
 import json
@@ -160,8 +160,7 @@ def test_rest_request_to_exchange_to_get_instruments():
         'expired': "false",
     }
     base_url = "https://www.deribit.com/api/v2/"
-    rest_client = RestClient()
-    information = DeribitOptionsAdapter.get_instruments(rest_client=rest_client, base_url=base_url, data=data)
+    information = DeribitOptionsAdapter.get_instruments(base_url=base_url, exchange_info=data)
     # function below does similar logic and there is a ratelimit on how many times you can call the function above, thus sleep gives a break.
     time.sleep(1)
 

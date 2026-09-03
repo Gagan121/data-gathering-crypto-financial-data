@@ -4,15 +4,16 @@ import sys
 
 from core.exchanges.binance_adapter import BinanceAdapter
 from core.exchanges.coinbase_adapter import CoinbaseAdapter
-from core.exchanges.deribit_options_adapter import DeribitOptionsAdapter
+from core.complex_exchanges.deribit_options_adapter import DeribitOptionsAdapter
 from core.exchanges.deribit_perpetuals_adapter import DeribitPerpetualAdapter
-from core.exchanges.exchange_adapter import ExchangeAdapter
-from core.pipeline.streampipeline import StreamPipeline
 
+from core.pipeline.streampipeline import StreamPipeline
+from core.manager.deribit_option_manager import DeribitOptionManager
 
 async def main():
 
     deribit_option_adapters = DeribitOptionsAdapter.generate_deribit_option_adapters(
+        limit_number_of_channels=499,
         interval_type="agg2",
         currency="BTC",
         expired="false",
@@ -23,7 +24,8 @@ async def main():
         # url="wss://test.deribit.com/ws/api/v2",
         msg={
             "jsonrpc": "2.0",
-            "method": "public/subscribe",
+            "method": "private/subscribe",
+            # "method": "public/subscribe",
             "id": 42,
             "params": {
                 "channels": []
@@ -49,7 +51,7 @@ async def main():
         channels = ["trades.BTC-PERPETUAL.raw","ticker.BTC-PERPETUAL.raw",],
         exchange_name="Deribit",
         ticker="BTC_PERPETUAL",
-        url="wss://www.deribit.com/ws/api/v2",
+        websocket_url="wss://www.deribit.com/ws/api/v2",
         # url="wss://test.deribit.com/ws/api/v2",
         msg={
             "jsonrpc": "2.0",
@@ -79,7 +81,7 @@ async def main():
             channels=["ticker"],
             exchange_name="Coinbase",
             ticker='BTC_USD',
-            url="wss://advanced-trade-ws.coinbase.com",
+            websocket_url="wss://advanced-trade-ws.coinbase.com",
             msg={
                 "type": "subscribe",
                 "product_ids": ["BTC-USD"],
@@ -89,7 +91,7 @@ async def main():
 
     binance_adapter = BinanceAdapter(
             channels=["ticker"],
-            url="wss://fstream.binance.com/public/ws/btcusdt@bookTicker",
+            websocket_url="wss://fstream.binance.com/public/ws/btcusdt@bookTicker",
             msg={
                 "method": "SUBSCRIBE",
                 "params":
@@ -123,16 +125,27 @@ async def main():
     if not (bool(deribit_option_adapters)):
         return
 
+
     pipelines = [
         StreamPipeline(adapter) for adapter in deribit_option_adapters
     ]
-    await asyncio.gather(
-        stream_pipeline_0.run(),
-        stream_pipeline_1.run(),
-        stream_pipeline_2.run(),
-        # options - gathering
-        *(pipeline.run() for pipeline in pipelines),
-    )
+
+    deribit_option_manager = DeribitOptionManager(pipelines, limit_of_number_of_channels=499)
+
+    try:
+
+        await asyncio.gather(
+            # stream_pipeline_0.run(),
+            # stream_pipeline_1.run(),
+            # stream_pipeline_2.run(),
+            # options - gathering
+            *(pipeline.run() for pipeline in pipelines),
+
+            deribit_option_manager.run()
+        )
+    except asyncio.CancelledError:
+        await deribit_option_manager.shutdown()
+        raise
 
 
 

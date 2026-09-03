@@ -7,7 +7,7 @@ def adapter():
     # channels: list, url: str, msg: dict, exchange_name: str, ticker: str
     return BinanceAdapter(
         channels=["ticker"],
-        url="wss://fstream.binance.com/public/ws/btcusdt@bookTicker",
+        websocket_url="wss://fstream.binance.com/public/ws/btcusdt@bookTicker",
         msg={
             "method": "SUBSCRIBE",
             "params":

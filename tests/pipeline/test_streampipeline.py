@@ -22,7 +22,7 @@ def adapter() -> ExchangeAdapter:
             return batch_list
         def writer(self, normalised_list_of_data):
             return
-    return TestAdapter(channels=["ticker", "trade"], exchange_name="Test", url="ws:test", msg={}, ticker="TEST_TEST")
+    return TestAdapter(channels=["ticker", "trade"], exchange_name="Test", websocket_url="ws:test", msg={}, ticker="TEST_TEST")
 
 @pytest.fixture
 def pipeline(adapter) -> StreamPipeline:

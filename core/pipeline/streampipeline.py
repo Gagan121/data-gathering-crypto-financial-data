@@ -3,6 +3,7 @@ import time
 
 from core.exchanges.exchange_adapter import ExchangeAdapter
 from core.websockets.websocket_client import WebsocketClient
+from working_example_concept import consumer
 
 
 class StreamPipeline:
@@ -21,33 +22,88 @@ class StreamPipeline:
             self.queue[channel] = asyncio.Queue(maxsize=self.max_size_for_queue)
             self.batch_list[channel] = []
 
+        self.consumer_tasks = dict()
+        self.producer_task=None
+        self._shutdown=False
 
+    def get_exchange_adapter(self) -> ExchangeAdapter:
+        return self.exchange_adapter
+
+    def get_queue(self) -> dict:
+        return self.queue
+
+    async def subscribe_to_channels(self, channels:list, subscribe_message:dict):
+        if not bool(subscribe_message):
+            raise ValueError("subscribing message is none")
+        for channel in channels:
+            self.queue[channel] = asyncio.Queue(maxsize=self.max_size_for_batch)
+            self.batch_list[channel] = []
+
+            self.consumer_tasks[channel] = asyncio.create_task(self.consumer(channel))
+
+        await self.ws.send_message_through_websocket_and_receive_message(msg=subscribe_message)
+
+
+    async def unsubscribe_from_channels(self, channels:list, unsubscribe_message:dict):
+        # content is present
+        if not bool(unsubscribe_message):
+            raise ValueError("unsubscribe message is none")
+
+        await self.ws.send_message_through_websocket_and_receive_message(msg=unsubscribe_message)
+
+        for channel in channels:
+            task = self.consumer_tasks.pop(channel, None)
+
+            if task is not None:
+                task.cancel()
+
+            await asyncio.gather(task, return_exceptions=True)
+
+        for channel in channels:
+            self.queue.pop(channel, None)
+            self.batch_list.pop(channel, None)
+
+        if not bool(self.queue):
+            await self.shutdown()
+
+
+    async def shutdown(self):
+
+        if self._shutdown:
+            return
+
+        self._shutdown = True
+
+        await self.ws.shutdown()
+        if self.producer_task is not None:
+            self.producer_task.cancel()
+            # the gather here is waiting for the producer_task to stop and suppresses the error caused -> a try await could be similar catching a asyncio CancelledError
+            await asyncio.gather(self.producer_task, return_exceptions=True)
+        # making sure the producer ends first thus no messages can pass on to
+
+        # thus making a copy stops the issue of making changes whilst iterating over them
+        consumer_tasks = list(self.consumer_tasks.values())
+
+        for task in consumer_tasks:
+            task.cancel()
+        await asyncio.gather(*consumer_tasks, return_exceptions=True)
 
 
     async def run(self):
-        producer_task = asyncio.create_task(self.producer())
+        self.producer_task = asyncio.create_task(self.producer())
+        # making a copy thus changes can be made to self.queue without errors
+        for channel in list(self.queue.keys()):
+            self.consumer_tasks[channel] = asyncio.create_task(self.consumer(channel))
 
-        consumer_task = [
-            asyncio.create_task(self.consumer(channel)) for channel in self.queue.keys()
-        ]
 
         try:
             await asyncio.gather(
-                producer_task,
-                *consumer_task,
+                self.producer_task,
+                *self.consumer_tasks.values(),
             )
         except asyncio.CancelledError as e:
             print("asyncio.CancelledError, closing program: ",e)
-            await self.ws.shutdown()
-
-            producer_task.cancel()
-            # the gather here is waiting for the producer_task to stop and suppresses the error caused -> a try await could be similar catching a asyncio CancelledError
-            await asyncio.gather(producer_task, return_exceptions=True)
-            # making sure the producer ends first thus no messages can pass on to
-
-            for task in consumer_task:
-                task.cancel()
-            await asyncio.gather(*consumer_task, return_exceptions=True)
+            await self.shutdown()
 
             raise
 
@@ -109,18 +165,6 @@ class StreamPipeline:
 
         except asyncio.CancelledError as e:
             print(f"asyncio.CancelledError in consumer {channel}, closing program: ", e)
-
-            # we need to empty the queue of all remaining items
-            while True:
-                try:
-                    mes = self.queue[channel].get_nowait()
-                except asyncio.QueueEmpty as e:
-                    break
-                else:
-                    self.queue[channel].task_done()
-                    self.batch_list[channel].append(mes)
-
-            if self.batch_list[channel]:
-                await self.process_batch(channel=channel)
+            await self.shutdown()
             # required here to pass the error on forward through the program so all other async function can catch on
             raise

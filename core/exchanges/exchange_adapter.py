@@ -39,7 +39,7 @@ def convert_to_decimal_and_quantize(value):
 
 
 class ExchangeAdapter(ABC):
-    def __init__(self, channels:list, exchange_name:str, url:str, msg:dict, ticker:str, heart_beat_msg:dict|None = None, heart_beat_reply_msg:dict|None = None ) -> None:
+    def __init__(self, channels:list, exchange_name:str, websocket_url:str, msg:dict, ticker:str, heart_beat_msg: dict | None = None, heart_beat_reply_msg: dict | None = None) -> None:
         self.normalised_list_of_data = []
         self.channels = channels
         # if data doesn't exist path()mkdir will create the whole directory path including the parent
@@ -47,7 +47,7 @@ class ExchangeAdapter(ABC):
         print("new_dir:", self.PATH_DIR)
         print("new_dir absolute:", self.PATH_DIR.resolve())
         self.exchange_name = exchange_name
-        self.url = url
+        self.websocket_url = websocket_url
         self.msg = msg
         self.heart_beat_msg = heart_beat_msg
         self.heart_beat_reply_msg = heart_beat_reply_msg
@@ -137,8 +137,8 @@ class ExchangeAdapter(ABC):
 
         return {"valid" : False, "data" : dict()}
 
-    def get_url(self) -> str:
-        return self.url
+    def get_websocket_url(self) -> str:
+        return self.websocket_url
 
     def get_data_request_msg(self):
         return self.msg

@@ -13,7 +13,7 @@ def adapter_ticker():
         channels = ["ticker.BTC-PERPETUAL.raw",],
         exchange_name="Deribit",
         ticker="BTC_PERPETUAL",
-        url="wss://www.deribit.com/ws/api/v2",
+        websocket_url="wss://www.deribit.com/ws/api/v2",
         # url="wss://test.deribit.com/ws/api/v2",
         msg={
             "jsonrpc": "2.0",
@@ -46,7 +46,7 @@ def adapter_trade():
         channels = ["trades.BTC-PERPETUAL.raw"],
         exchange_name="Deribit",
         ticker="BTC_PERPETUAL",
-        url="wss://www.deribit.com/ws/api/v2",
+        websocket_url="wss://www.deribit.com/ws/api/v2",
         # url="wss://test.deribit.com/ws/api/v2",
         msg={
             "jsonrpc": "2.0",

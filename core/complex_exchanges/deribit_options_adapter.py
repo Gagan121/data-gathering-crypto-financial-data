@@ -1,7 +1,8 @@
 import time
 from datetime import datetime
 from decimal import Decimal
-from core.exchanges.exchange_adapter import ExchangeAdapter, flatten, convert_to_decimal_and_quantize
+from core.exchanges.exchange_adapter import flatten, convert_to_decimal_and_quantize
+from core.complex_exchanges.exchanges_with_expiry import ExchangeWithExpiry
 from core.rest_requests.rest_client_requests import RestClient
 import os
 from dotenv import load_dotenv
@@ -11,20 +12,32 @@ import copy
 load_dotenv()
 
 
-class DeribitOptionsAdapter(ExchangeAdapter):
+class DeribitOptionsAdapter(ExchangeWithExpiry):
     # used to get the number of instruments we are looking for
-    def __init__(self, channels: list, exchange_name: str, websocket_url: str, msg: dict, ticker: str,
+    def __init__(self, base_url:str, exchange_info:dict, channels: list, exchange_name: str, websocket_url: str, msg: dict, ticker: str,
                  heart_beat_msg: dict, heart_beat_reply_msg:dict) -> None:
 
-        super().__init__(channels=channels, exchange_name=exchange_name, url=websocket_url, msg=msg, ticker=ticker,
-                         heart_beat_msg=heart_beat_msg, heart_beat_reply_msg=heart_beat_reply_msg)
+        super().__init__(base_url=base_url, exchange_info=exchange_info, channels=channels, exchange_name=exchange_name, websocket_url=websocket_url, msg=msg, ticker=ticker, heart_beat_msg=heart_beat_msg, heart_beat_reply_msg=heart_beat_reply_msg)
         load_dotenv()
 
         self._client_id = os.getenv("DERIBIT_PERPETUAL_CLIENT_ID")
         self._client_secret = os.getenv("DERIBIT_PERPETUAL_CLIENT_SECRET")
 
+    def create_new_adapter(self, channels:list):
+        return type(self)(
+            base_url=self.base_url,
+            exchange_info=self.exchange_info,
+            channels=channels,
+            exchange_name=self.exchange_name,
+            websocket_url=self.websocket_url,
+            msg=self.msg,
+            ticker=self.ticker,
+            heart_beat_msg=self.heart_beat_msg,
+            heart_beat_reply_msg=self.heart_beat_reply_msg
+        )
+
     @classmethod
-    def generate_deribit_option_adapters(cls, interval_type: str, base_url: str, msg: dict, currency: str, expired: str,
+    def generate_deribit_option_adapters(cls, limit_number_of_channels:int, interval_type: str, base_url: str, msg: dict, currency: str, expired: str,
                                          data_types: list, websocket_url: str, exchange_name: str, heart_beat_msg: dict,
                                          heart_beat_reply_msg: dict) -> list:
         '''
@@ -41,9 +54,7 @@ class DeribitOptionsAdapter(ExchangeAdapter):
             'currency': currency,
             'expired': expired,
         }
-
-        rest_client = RestClient()
-        information = DeribitOptionsAdapter.get_instruments(rest_client=rest_client, base_url=base_url, data=data)
+        information = DeribitOptionsAdapter.get_instruments(base_url=base_url, exchange_info=data)
         # true if information is there
         if not (bool(information)):
             return []
@@ -54,7 +65,7 @@ class DeribitOptionsAdapter(ExchangeAdapter):
             for types_of_data in data_types:
                 total_channels.append(f"{types_of_data}.{item['instrument_name']}.{interval_type}")
 
-        list_of_lists_of_channels = [total_channels[x:x + 499] for x in range(0, len(total_channels), 499)]
+        list_of_lists_of_channels = [total_channels[x:x + limit_number_of_channels] for x in range(0, len(total_channels), limit_number_of_channels)]
         list_of_adapters = []
         for i in range(len(list_of_lists_of_channels)):
             # we have to create a copy here otherwise pass by reference would make all the msg the same
@@ -68,11 +79,15 @@ class DeribitOptionsAdapter(ExchangeAdapter):
                     msg=adapter_msg,
                     ticker=currency,
                     heart_beat_msg=heart_beat_msg,
-                    heart_beat_reply_msg=heart_beat_reply_msg
+                    heart_beat_reply_msg=heart_beat_reply_msg,
+                    base_url=base_url,
+                    exchange_info=data,
                 )
             )
 
         return list_of_adapters
+
+
 
     @staticmethod
     def sort_data_form_new_requests(information) -> list | None:
@@ -90,21 +105,47 @@ class DeribitOptionsAdapter(ExchangeAdapter):
         return list_of_instruments
 
     @staticmethod
-    def get_instruments(rest_client, base_url, data) -> dict:
+    def get_instruments(base_url, exchange_info) -> dict:
+        rest_client = RestClient()
         msg = {
             "method": "public/get_instruments",
             "params": {
-                "currency": data["currency"],
+                "currency": exchange_info["currency"],
                 "kind": "option",
-                "expired": data["expired"],
+                "expired": exchange_info["expired"],
             }
         }
 
         full_url = urljoin(base_url, msg['method'])
         # you have to break the request up into the params as it give you everything unfiltered
-        data = rest_client.get_request(full_url=full_url, msg=msg['params'])
+        exchange_info_on_instruments = rest_client.get_request(full_url=full_url, msg=msg['params'])
 
-        return data
+        return exchange_info_on_instruments
+
+    def set_channels_in_msg(self):
+        self.msg["params"]['channels'] = self.channels
+
+
+    def get_unsubscribe_from_channel_msg(self, channels:list):
+        return {
+            "jsonrpc": "2.0",
+            "id": 3370,
+            "method": "private/unsubscribe",
+            "params": {
+                "channels": channels
+            }
+        }
+
+    def get_subscribe_to_channel_msg(self, channels:list):
+        return {
+            "jsonrpc": "2.0",
+            "method": "private/subscribe",
+            # "method": "public/subscribe",
+            "id": 42,
+            "params": {
+                "channels": channels
+            }
+        }
 
     def get_authentication_info(self) -> dict:
         return {

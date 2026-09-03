@@ -14,8 +14,8 @@ class BinanceAdapter(ExchangeAdapter):
     def validate_authentication(self, authentication_message) -> bool:
         pass
 
-    def __init__(self,channels:list, url:str, msg:dict, exchange_name:str, ticker:str):
-        super().__init__(channels=channels, exchange_name=exchange_name, url=url, msg=msg, ticker=ticker)
+    def __init__(self, channels:list, websocket_url:str, msg:dict, exchange_name:str, ticker:str):
+        super().__init__(channels=channels, exchange_name=exchange_name, websocket_url=websocket_url, msg=msg, ticker=ticker)
 
     @override
     def valid_message_can_pass_and_restructure_data(self, msg) -> dict:

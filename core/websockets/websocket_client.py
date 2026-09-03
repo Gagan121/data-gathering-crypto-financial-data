@@ -75,9 +75,20 @@ class WebsocketClient:
 
         return valid
 
+    async def send_message_through_websocket_and_receive_message(self, msg):
+        if not (msg is None):
+            try:
+                await self.sent_msg_to_websocket(msg)
+                response = json.loads(await self.recv_message_from_websocket())
+                print(response)
+            except Exception as e:
+                print(e)
+
+        return None
+
 
     async def connect(self):
-        self.ws = await websockets.connect(self.exchange_adapter.get_url())
+        self.ws = await websockets.connect(self.exchange_adapter.get_websocket_url())
     # we can leave msg a parameter here if a additional message is required in the future
     async def sent_msg_to_websocket(self, msg):
         await self.ws.send(json.dumps(msg))

@@ -8,7 +8,7 @@ def adapter():
         channels=["ticker"],
         exchange_name="Coinbase",
         ticker='BTC_USD',
-        url="wss://advanced-trade-ws.coinbase.com",
+        websocket_url="wss://advanced-trade-ws.coinbase.com",
         msg={
             "type": "subscribe",
             "product_ids": ["BTC-USD"],
