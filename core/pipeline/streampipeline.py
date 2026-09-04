@@ -3,8 +3,6 @@ import time
 
 from core.exchanges.exchange_adapter import ExchangeAdapter
 from core.websockets.websocket_client import WebsocketClient
-from working_example_concept import consumer
-
 
 class StreamPipeline:
     def __init__(self, exchange_adapter:ExchangeAdapter):

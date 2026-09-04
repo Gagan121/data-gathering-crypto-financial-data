@@ -1,7 +1,11 @@
 from abc import abstractmethod
+from typing import TypeVar, Generic
 
 from core.exchanges.exchange_adapter import ExchangeAdapter
-class ExchangeWithExpiry(ExchangeAdapter):
+
+T = TypeVar("T")
+
+class ExchangeWithExpiry(ExchangeAdapter, Generic[T]):
 
     def __init__(self, base_url: str, exchange_info: dict, channels: list, exchange_name: str, websocket_url: str,
                  msg: dict, ticker: str, heart_beat_msg: dict | None = None,
@@ -14,12 +18,12 @@ class ExchangeWithExpiry(ExchangeAdapter):
 
     @staticmethod
     @abstractmethod
-    def get_instruments(base_url, exchange_info) -> dict:
+    def get_instruments(config: T) -> dict:
         pass
 
     @staticmethod
     @abstractmethod
-    def sort_data_form_new_requests(information) -> list | None:
+    def sort_data_form_new_requests(information) -> list:
         pass
 
     def get_base_url(self) -> str:

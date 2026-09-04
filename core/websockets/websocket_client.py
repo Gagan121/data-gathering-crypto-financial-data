@@ -3,8 +3,6 @@ import websockets
 import asyncio
 import time
 
-from pandas.core.dtypes.astype import astype_array
-
 from core.exchanges.exchange_adapter import ExchangeAdapter
 
 

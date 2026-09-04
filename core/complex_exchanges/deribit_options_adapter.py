@@ -8,11 +8,49 @@ import os
 from dotenv import load_dotenv
 from urllib.parse import urljoin
 import copy
+from dataclasses import dataclass, fields
 
 load_dotenv()
 
+@dataclass
+class DeribitOptionsConfig:
+    limit_number_of_channels: int
+    interval_type: str
+    base_url: str
+    msg: dict
+    currency: str
+    expired: str
+    data_types: list
+    websocket_url: str
+    exchange_name: str
+    heart_beat_msg: dict
+    heart_beat_reply_msg: dict
 
-class DeribitOptionsAdapter(ExchangeWithExpiry):
+    def __post_init__(self):
+
+        for field in fields(self):
+            if getattr(self, field.name) is None:
+                raise ValueError(f"{field.name} cannot be None")
+
+        if self.limit_number_of_channels <= 0:
+            raise ValueError("limit_number_of_channels must be greater than 0")
+
+        if self.limit_number_of_channels >= 500:
+            raise ValueError("limit_number_of_channels must be smaller 500")
+
+        if self.currency not in ("BTC", "ETH"):
+            raise ValueError("currency must be BTC or ETH")
+
+        if self.interval_type not in ("agg2", "raw", "100ms"):
+            raise ValueError("invalid interval_type")
+
+
+
+#         check all values are not None
+
+
+class DeribitOptionsAdapter(ExchangeWithExpiry[DeribitOptionsConfig]):
+
     # used to get the number of instruments we are looking for
     def __init__(self, base_url:str, exchange_info:dict, channels: list, exchange_name: str, websocket_url: str, msg: dict, ticker: str,
                  heart_beat_msg: dict, heart_beat_reply_msg:dict) -> None:
@@ -36,61 +74,9 @@ class DeribitOptionsAdapter(ExchangeWithExpiry):
             heart_beat_reply_msg=self.heart_beat_reply_msg
         )
 
-    @classmethod
-    def generate_deribit_option_adapters(cls, limit_number_of_channels:int, interval_type: str, base_url: str, msg: dict, currency: str, expired: str,
-                                         data_types: list, websocket_url: str, exchange_name: str, heart_beat_msg: dict,
-                                         heart_beat_reply_msg: dict) -> list:
-        '''
-
-        :param currency:
-        :param expired:
-        :param data_types: -> list of types for example ticker, trades,.....
-        :param websocket_url:
-        :param exchange_name:
-        :param heart_beat_msg:
-        :param heart_beat_reply_msg:
-        '''
-        data = {
-            'currency': currency,
-            'expired': expired,
-        }
-        information = DeribitOptionsAdapter.get_instruments(base_url=base_url, exchange_info=data)
-        # true if information is there
-        if not (bool(information)):
-            return []
-        list_of_instruments = DeribitOptionsAdapter.sort_data_form_new_requests(information)
-
-        total_channels = []
-        for item in list_of_instruments:
-            for types_of_data in data_types:
-                total_channels.append(f"{types_of_data}.{item['instrument_name']}.{interval_type}")
-
-        list_of_lists_of_channels = [total_channels[x:x + limit_number_of_channels] for x in range(0, len(total_channels), limit_number_of_channels)]
-        list_of_adapters = []
-        for i in range(len(list_of_lists_of_channels)):
-            # we have to create a copy here otherwise pass by reference would make all the msg the same
-            adapter_msg = copy.deepcopy(msg)
-            adapter_msg["params"]['channels'] = list_of_lists_of_channels[i]
-            list_of_adapters.append(
-                DeribitOptionsAdapter(
-                    channels=list_of_lists_of_channels[i],
-                    exchange_name=exchange_name,
-                    websocket_url=websocket_url,
-                    msg=adapter_msg,
-                    ticker=currency,
-                    heart_beat_msg=heart_beat_msg,
-                    heart_beat_reply_msg=heart_beat_reply_msg,
-                    base_url=base_url,
-                    exchange_info=data,
-                )
-            )
-
-        return list_of_adapters
-
-
 
     @staticmethod
-    def sort_data_form_new_requests(information) -> list | None:
+    def sort_data_form_new_requests(information) -> list:
 
         data_is_valid = (
                 isinstance(information, dict)
@@ -99,24 +85,24 @@ class DeribitOptionsAdapter(ExchangeWithExpiry):
                 and len(information["result"]) > 0
         )
         if not data_is_valid:
-            return None
+            return []
 
         list_of_instruments = information["result"]
         return list_of_instruments
 
     @staticmethod
-    def get_instruments(base_url, exchange_info) -> dict:
+    def get_instruments(config: DeribitOptionsConfig) -> dict:
         rest_client = RestClient()
         msg = {
             "method": "public/get_instruments",
             "params": {
-                "currency": exchange_info["currency"],
+                "currency": config.currency,
                 "kind": "option",
-                "expired": exchange_info["expired"],
+                "expired": config.expired,
             }
         }
 
-        full_url = urljoin(base_url, msg['method'])
+        full_url = urljoin(config.base_url, msg['method'])
         # you have to break the request up into the params as it give you everything unfiltered
         exchange_info_on_instruments = rest_client.get_request(full_url=full_url, msg=msg['params'])
 

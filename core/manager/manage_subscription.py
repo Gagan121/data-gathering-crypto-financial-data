@@ -1,24 +1,41 @@
 import asyncio
 import time
 
-from pandas.conftest import rand_series_with_duplicate_datetimeindex
 import copy
+from typing import TypeVar, Generic
+
+from core.complex_exchanges.deribit_options_adapter import DeribitOptionsConfig
 from core.complex_exchanges.exchanges_with_expiry import ExchangeWithExpiry
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 from core.pipeline.streampipeline import StreamPipeline
 
+T = TypeVar('T')
 
-class ManageSubscription:
+class ManageSubscription(ABC, Generic[T]):
     def __init__(self, pipelines: list, limit_of_number_of_channels:int):
         self.pipelines = pipelines
         self.pipeline_tasks = []
         self.limit_of_number_of_channels = limit_of_number_of_channels
         self.dict_of_channel_to_pipeline = self.decompile_channels_to_pipeline()
 
+    @classmethod
+    @abstractmethod
+    def generate_multiple_adapters(cls, exchange_with_expiry:ExchangeWithExpiry) -> list:
+        pass
 
     @abstractmethod
-    def find_instruments(self):
+    def find_instruments(self, config: T) -> list:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def format_instruments_to_channels(list_of_instruments_dict: list, config:T):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def convert_data_to_single_list_of_channels(data:list) -> list:
         pass
 
     def decompile_channels_to_pipeline(self):
@@ -101,6 +118,10 @@ class ManageSubscription:
 
 
     async def add_channels(self, channels_to_acquire):
+
+        # if len(channels_to_acquire) <= 0:
+        #     return
+
         for pipeline in self.pipelines:
             exchange_with_expiry = pipeline.get_exchange_adapter()
             if isinstance(exchange_with_expiry, ExchangeWithExpiry):
@@ -137,13 +158,16 @@ class ManageSubscription:
 
 
 
-
-    async def run(self):
+    async def run(self, config: T):
         try:
             while True:
-                time.sleep(60)
-                list_of_instruments = self.find_instruments()
-                dict_of_channels_to_acquire_and_remove = self.compare_pipelines_with_newly_gathered_instruments(list_of_instruments)
+                # time.sleep(60)
+                list_of_instruments_dict = self.find_instruments(config=config)
+
+                list_of_channels = self.format_instruments_to_channels(list_of_instruments_dict, config)
+                # get an accurate image of what channels are where
+                self.dict_of_channel_to_pipeline = self.decompile_channels_to_pipeline()
+                dict_of_channels_to_acquire_and_remove = self.compare_pipelines_with_newly_gathered_instruments(list_of_channels)
 
                 await self.remove_channels(channels_to_remove=dict_of_channels_to_acquire_and_remove['remove'])
 
