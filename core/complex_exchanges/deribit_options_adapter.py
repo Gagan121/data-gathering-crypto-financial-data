@@ -64,15 +64,23 @@ class DeribitOptionsAdapter(ExchangeWithExpiry[DeribitOptionsConfig]):
     def create_new_adapter(self, channels:list):
         return type(self)(
             base_url=self.base_url,
-            exchange_info=self.exchange_info,
+            exchange_info=copy.deepcopy(self.exchange_info),
             channels=channels,
             exchange_name=self.exchange_name,
             websocket_url=self.websocket_url,
-            msg=self.msg,
+            msg=copy.deepcopy(self.msg),
             ticker=self.ticker,
-            heart_beat_msg=self.heart_beat_msg,
-            heart_beat_reply_msg=self.heart_beat_reply_msg
+            heart_beat_msg=copy.deepcopy(self.heart_beat_msg),
+            heart_beat_reply_msg=copy.deepcopy(self.heart_beat_reply_msg)
         )
+
+
+
+    def add_request_id(self, msg:dict, request_id) -> dict:
+        if (msg is not None) and isinstance(msg, dict):
+            msg["id"] = request_id
+
+        return msg
 
 
     @staticmethod
@@ -115,7 +123,6 @@ class DeribitOptionsAdapter(ExchangeWithExpiry[DeribitOptionsConfig]):
     def get_unsubscribe_from_channel_msg(self, channels:list):
         return {
             "jsonrpc": "2.0",
-            "id": 3370,
             "method": "private/unsubscribe",
             "params": {
                 "channels": channels
@@ -127,7 +134,6 @@ class DeribitOptionsAdapter(ExchangeWithExpiry[DeribitOptionsConfig]):
             "jsonrpc": "2.0",
             "method": "private/subscribe",
             # "method": "public/subscribe",
-            "id": 42,
             "params": {
                 "channels": channels
             }
@@ -136,7 +142,6 @@ class DeribitOptionsAdapter(ExchangeWithExpiry[DeribitOptionsConfig]):
     def get_authentication_info(self) -> dict:
         return {
             "jsonrpc": "2.0",
-            "id": 9929,
             "method": "public/auth",
             "params": {
                 "grant_type": "client_credentials",
@@ -148,7 +153,6 @@ class DeribitOptionsAdapter(ExchangeWithExpiry[DeribitOptionsConfig]):
     def get_refresh_authentication_info(self) -> dict:
         return {
             "jsonrpc": "2.0",
-            "id": 9931,
             "method": "public/auth",
             "params": {
                 "grant_type": "refresh_token",
@@ -230,39 +234,39 @@ class DeribitOptionsAdapter(ExchangeWithExpiry[DeribitOptionsConfig]):
 
         try:
             return {
-                "channel": data['params']['channel'],
+                "channel" : data["params"]["channel"],
                 'exch_ts_sec': exch_ts_sec,
                 'exch_ts_micro': exch_ts_micro,
                 'sys_ts_sec': sys_ts_sec,
                 'sys_ts_micro': sys_ts_micro,
-                'underlying_index': new_data['underlying_index'],
-                'underlying_price': convert_to_decimal_and_quantize(new_data['underlying_price']),
-                'bid': convert_to_decimal_and_quantize(new_data['best_bid_price']),
-                'ask': convert_to_decimal_and_quantize(new_data['best_ask_price']),
-                'bid_quantity': convert_to_decimal_and_quantize(new_data['best_bid_amount']),
-                'ask_quantity': convert_to_decimal_and_quantize(new_data['best_ask_amount']),
-                'high': convert_to_decimal_and_quantize(new_data['high']),
-                'low': convert_to_decimal_and_quantize(new_data['low']),
-                'price_change': convert_to_decimal_and_quantize(new_data['price_change']),
-                'volume': convert_to_decimal_and_quantize(new_data['volume']),
-                'volume_usd': convert_to_decimal_and_quantize(new_data['volume_usd']),
-                'delta': convert_to_decimal_and_quantize(new_data['delta']),
-                'gamma': convert_to_decimal_and_quantize(new_data['gamma']),
-                'vega': convert_to_decimal_and_quantize(new_data['vega']),
-                'theta': convert_to_decimal_and_quantize(new_data['theta']),
-                'rho': convert_to_decimal_and_quantize(new_data['rho']),
-                'index_price': convert_to_decimal_and_quantize(new_data['index_price']),
-                'last_price': convert_to_decimal_and_quantize(new_data['last_price']),
-                'settlement_price': convert_to_decimal_and_quantize(new_data['settlement_price']),
-                'min_price': convert_to_decimal_and_quantize(new_data['min_price']),
-                'max_price': convert_to_decimal_and_quantize(new_data['max_price']),
-                'open_interest': convert_to_decimal_and_quantize(new_data['open_interest']),
-                'mark_price': convert_to_decimal_and_quantize(new_data['mark_price']),
-                'interest_rate': convert_to_decimal_and_quantize(new_data['interest_rate']),
-                'estimated_delivery_price': convert_to_decimal_and_quantize(new_data['estimated_delivery_price']),
-                'mark_iv': convert_to_decimal_and_quantize(new_data['mark_iv']),
-                'bid_iv': convert_to_decimal_and_quantize(new_data['bid_iv']),
-                'ask_iv': convert_to_decimal_and_quantize(new_data['ask_iv']),
+                'underlying_index': new_data.get('underlying_index'),
+                'underlying_price': convert_to_decimal_and_quantize(new_data.get('underlying_price')),
+                'bid': convert_to_decimal_and_quantize(new_data.get('best_bid_price')),
+                'ask': convert_to_decimal_and_quantize(new_data.get('best_ask_price')),
+                'bid_quantity': convert_to_decimal_and_quantize(new_data.get('best_bid_amount')),
+                'ask_quantity': convert_to_decimal_and_quantize(new_data.get('best_ask_amount')),
+                'high': convert_to_decimal_and_quantize(new_data.get('high')),
+                'low': convert_to_decimal_and_quantize(new_data.get('low')),
+                'price_change': convert_to_decimal_and_quantize(new_data.get('price_change')),
+                'volume': convert_to_decimal_and_quantize(new_data.get('volume')),
+                'volume_usd': convert_to_decimal_and_quantize(new_data.get('volume_usd')),
+                'delta': convert_to_decimal_and_quantize(new_data.get('delta')),
+                'gamma': convert_to_decimal_and_quantize(new_data.get('gamma')),
+                'vega': convert_to_decimal_and_quantize(new_data.get('vega')),
+                'theta': convert_to_decimal_and_quantize(new_data.get('theta')),
+                'rho': convert_to_decimal_and_quantize(new_data.get('rho')),
+                'index_price': convert_to_decimal_and_quantize(new_data.get('index_price')),
+                'last_price': convert_to_decimal_and_quantize(new_data.get('last_price')),
+                'settlement_price': convert_to_decimal_and_quantize(new_data.get('settlement_price')),
+                'min_price': convert_to_decimal_and_quantize(new_data.get('min_price')),
+                'max_price': convert_to_decimal_and_quantize(new_data.get('max_price')),
+                'open_interest': convert_to_decimal_and_quantize(new_data.get('open_interest')),
+                'mark_price': convert_to_decimal_and_quantize(new_data.get('mark_price')),
+                'interest_rate': convert_to_decimal_and_quantize(new_data.get('interest_rate')),
+                'estimated_delivery_price': convert_to_decimal_and_quantize(new_data.get('estimated_delivery_price')),
+                'mark_iv': convert_to_decimal_and_quantize(new_data.get('mark_iv')),
+                'bid_iv': convert_to_decimal_and_quantize(new_data.get('bid_iv')),
+                'ask_iv': convert_to_decimal_and_quantize(new_data.get('ask_iv')),
             }
         except (KeyError, IndexError, TypeError):
             return dict()
@@ -277,7 +281,7 @@ class DeribitOptionsAdapter(ExchangeWithExpiry[DeribitOptionsConfig]):
         trade_list = []
         for i in range(len(data['params']['data'])):
             trade = data['params']['data'][i]
-            ts = trade['timestamp']
+            ts = trade.get('timestamp')
             temp = (ts / 1000)
             exch_ts_sec = int(temp)
             exch_ts_micro = int((temp - exch_ts_sec) * 1_000_000)
@@ -290,19 +294,19 @@ class DeribitOptionsAdapter(ExchangeWithExpiry[DeribitOptionsConfig]):
                     'sys_ts_micro': sys_ts_micro,
                     'exch_ts_sec': exch_ts_sec,
                     'exch_ts_micro': exch_ts_micro,
-                    'price': convert_to_decimal_and_quantize(trade['price']),
-                    'iv': convert_to_decimal_and_quantize(trade['iv']),
-                    'direction': trade['direction'],
-                    'index_price': convert_to_decimal_and_quantize(trade['index_price']),
-                    'instrument_name': trade['instrument_name'],
-                    'trade_seq': trade['trade_seq'],
-                    'amount': convert_to_decimal_and_quantize(trade['amount']),
-                    'mark_price': convert_to_decimal_and_quantize(trade['mark_price']),
-                    'tick_direction': int(trade['tick_direction']),
-                    'starbase_match_id': convert_to_decimal_and_quantize(trade['starbase_match_id']),
-                    'trade_id': convert_to_decimal_and_quantize(trade['trade_id']),
-                    'contracts': convert_to_decimal_and_quantize(trade['contracts']),
-                    'starbase_timestamp': convert_to_decimal_and_quantize(trade['starbase_timestamp']),
+                    'price': convert_to_decimal_and_quantize(trade.get('price')),
+                    'iv': convert_to_decimal_and_quantize(trade.get('iv')),
+                    'direction': trade.get('direction'),
+                    'index_price': convert_to_decimal_and_quantize(trade.get('index_price')),
+                    'instrument_name': trade.get('instrument_name'),
+                    'trade_seq': trade.get('trade_seq'),
+                    'amount': convert_to_decimal_and_quantize(trade.get('amount')),
+                    'mark_price': convert_to_decimal_and_quantize(trade.get('mark_price')),
+                    'tick_direction': int(trade.get('tick_direction')),
+                    'starbase_match_id': convert_to_decimal_and_quantize(trade.get('starbase_match_id')),
+                    'trade_id': convert_to_decimal_and_quantize(trade.get('trade_id')),
+                    'contracts': convert_to_decimal_and_quantize(trade.get('contracts')),
+                    'starbase_timestamp': convert_to_decimal_and_quantize(trade.get('starbase_timestamp')),
                 }
             except (KeyError, IndexError, TypeError):
                 continue

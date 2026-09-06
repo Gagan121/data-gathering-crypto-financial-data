@@ -65,6 +65,10 @@ class ExchangeAdapter(ABC):
         self._time_token_collected = 0
 
     @abstractmethod
+    def add_request_id(self, msg:dict, request_id) -> dict:
+        pass
+
+    @abstractmethod
     def restructure_data(self, data) -> dict|list:
         pass
 
@@ -83,6 +87,9 @@ class ExchangeAdapter(ABC):
     @abstractmethod
     def validate_authentication(self, authentication_message) -> bool:
         pass
+
+    def get_exchange_name(self):
+        return self.exchange_name
 
     def get_channels(self) -> list:
         return self.channels

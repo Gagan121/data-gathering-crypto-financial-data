@@ -33,7 +33,7 @@ class DeribitOptionManager(ManageSubscription[DeribitOptionsConfig]):
                     channels=list_of_lists_of_channels[i],
                     exchange_name=deribit_options_config.exchange_name,
                     websocket_url=deribit_options_config.websocket_url,
-                    msg=deribit_options_config.msg,
+                    msg=adapter_msg,
                     ticker=deribit_options_config.currency,
                     heart_beat_msg=deribit_options_config.heart_beat_msg,
                     heart_beat_reply_msg=deribit_options_config.heart_beat_reply_msg,

@@ -41,13 +41,14 @@ class ManageSubscription(ABC, Generic[T]):
     def decompile_channels_to_pipeline(self):
         channel_to_adapter = dict()
         for i in range(len(self.pipelines)):
-            for channel in self.pipelines[i].get_exchange_adapter().get_channels():
-                channel_to_adapter[channel] = i
+            pipeline = self.pipelines[i]
+            for channel in pipeline.get_exchange_adapter().get_channels():
+                channel_to_adapter[channel] = pipeline
 
         return channel_to_adapter
 
 
-    def compare_pipelines_with_newly_gathered_instruments(self, list_of_instruments):
+    def compare_pipelines_with_newly_gathered_instruments(self, list_of_instruments) -> dict[str, list[str]]:
 
         set_of_requested_instruments = set(list_of_instruments)
         set_of_instruments_have_already = set(self.dict_of_channel_to_pipeline.keys())
@@ -56,25 +57,28 @@ class ManageSubscription(ABC, Generic[T]):
         remove = set_of_instruments_have_already - set_of_requested_instruments
 
         return {
-            "required": required,
-            "remove": remove,
+            "required": list(required),
+            "remove": list(remove),
         }
 
     async def remove_channels(self, channels_to_remove):
         dict_pipeline_to_channels_list_to_remove = dict()
         for channel in channels_to_remove:
-            pipeline_index = self.dict_of_channel_to_pipeline[channel]
 
-            if pipeline_index not in dict_pipeline_to_channels_list_to_remove:
-                dict_pipeline_to_channels_list_to_remove[pipeline_index] = [channel]
+            if channel not in self.dict_of_channel_to_pipeline.keys():
+                continue
+
+            pipeline = self.dict_of_channel_to_pipeline[channel]
+
+
+            if pipeline not in dict_pipeline_to_channels_list_to_remove:
+                dict_pipeline_to_channels_list_to_remove[pipeline] = [channel]
             else:
-                dict_pipeline_to_channels_list_to_remove[pipeline_index].append(channel)
+                dict_pipeline_to_channels_list_to_remove[pipeline].append(channel)
 
 
-        for pipeline_index in dict_pipeline_to_channels_list_to_remove.keys():
-            channels = dict_pipeline_to_channels_list_to_remove[pipeline_index]
-
-            pipeline = self.pipelines[pipeline_index]
+        for pipeline in dict_pipeline_to_channels_list_to_remove.keys():
+            channels = dict_pipeline_to_channels_list_to_remove[pipeline]
 
             exchange_with_expiry = pipeline.get_exchange_adapter()
 
@@ -93,12 +97,18 @@ class ManageSubscription(ABC, Generic[T]):
 
     #         check if pipeline has any channels in it if not then remove the whole pipeline -> done through a internal check in the pipeline
 
-    def place_channels_into_pipeline(self, pipeline:StreamPipeline, channels:list):
+    async def place_channels_into_pipeline(self, pipeline:StreamPipeline, channels:list):
+        # channels is empty
+        if len(channels) <= 0:
+            return
         exchange_with_expiry = pipeline.get_exchange_adapter()
         if not isinstance(exchange_with_expiry, ExchangeWithExpiry):
             return
         subscribe_message = exchange_with_expiry.get_subscribe_to_channel_msg(channels=channels)
-        pipeline.subscribe_to_channels(channels=channels,subscribe_message=subscribe_message)
+        await pipeline.subscribe_to_channels(channels=channels,subscribe_message=subscribe_message)
+        # add added channels to the total channels under pipeline
+        total_channels_in_pipeline = exchange_with_expiry.get_channels() + channels
+        exchange_with_expiry.set_channels(total_channels_in_pipeline)
 
 
     def create_new_pipeline_to_handle_new_channels(self, pipeline:StreamPipeline, channels:list):
@@ -119,10 +129,11 @@ class ManageSubscription(ABC, Generic[T]):
 
     async def add_channels(self, channels_to_acquire):
 
-        # if len(channels_to_acquire) <= 0:
-        #     return
-
         for pipeline in self.pipelines:
+
+            if len(channels_to_acquire) <= 0:
+                return
+
             exchange_with_expiry = pipeline.get_exchange_adapter()
             if isinstance(exchange_with_expiry, ExchangeWithExpiry):
                 list_of_channels_on_exchange = exchange_with_expiry.channels
@@ -136,9 +147,11 @@ class ManageSubscription(ABC, Generic[T]):
 
                 section_of_channels = channels_to_acquire[:number_of_empty_channel_spaces]
 
-                self.place_channels_into_pipeline(pipeline,section_of_channels)
+                await self.place_channels_into_pipeline(pipeline,section_of_channels)
 
                 channels_to_acquire = channels_to_acquire[number_of_empty_channel_spaces:]
+
+        # channels_to_acquire = ['ticker.BTC-6SEP26-68000-P.agg2']
 
         if len(channels_to_acquire) > 0:
             if len(self.pipelines) <= 0:
@@ -161,7 +174,8 @@ class ManageSubscription(ABC, Generic[T]):
     async def run(self, config: T):
         try:
             while True:
-                # time.sleep(60)
+                await asyncio.sleep(60)
+
                 list_of_instruments_dict = self.find_instruments(config=config)
 
                 list_of_channels = self.format_instruments_to_channels(list_of_instruments_dict, config)
@@ -169,9 +183,15 @@ class ManageSubscription(ABC, Generic[T]):
                 self.dict_of_channel_to_pipeline = self.decompile_channels_to_pipeline()
                 dict_of_channels_to_acquire_and_remove = self.compare_pipelines_with_newly_gathered_instruments(list_of_channels)
 
+                # dict_of_channels_to_acquire_and_remove["remove"] = ['ticker.BTC-6SEP26-68000-C.agg2','ticker.BTC-6SEP26-68000-P.agg2']
+
                 await self.remove_channels(channels_to_remove=dict_of_channels_to_acquire_and_remove['remove'])
 
+                # dict_of_channels_to_acquire_and_remove["required"] = ['ticker.BTC-6SEP26-68000-C.agg2']
+
                 await self.add_channels(channels_to_acquire=dict_of_channels_to_acquire_and_remove["required"])
+
+                # await asyncio.sleep(10)
 
         except asyncio.CancelledError as e:
             print(f"asyncio.CancelledError in run in manager_subscription, closing program: ", e)

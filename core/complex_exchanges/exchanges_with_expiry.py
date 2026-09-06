@@ -15,7 +15,6 @@ class ExchangeWithExpiry(ExchangeAdapter, Generic[T]):
         self.base_url = base_url
         self.exchange_info = exchange_info
 
-
     @staticmethod
     @abstractmethod
     def get_instruments(config: T) -> dict:

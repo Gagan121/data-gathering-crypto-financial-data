@@ -31,6 +31,8 @@ class StreamPipeline:
         return self.queue
 
     async def subscribe_to_channels(self, channels:list, subscribe_message:dict):
+        if len(channels) <= 0:
+            return
         if not bool(subscribe_message):
             raise ValueError("subscribing message is none")
         for channel in channels:
@@ -39,7 +41,7 @@ class StreamPipeline:
 
             self.consumer_tasks[channel] = asyncio.create_task(self.consumer(channel))
 
-        await self.ws.send_message_through_websocket_and_receive_message(msg=subscribe_message)
+        await self.ws.sent_msg_to_websocket(msg=subscribe_message)
 
 
     async def unsubscribe_from_channels(self, channels:list, unsubscribe_message:dict):
@@ -47,15 +49,14 @@ class StreamPipeline:
         if not bool(unsubscribe_message):
             raise ValueError("unsubscribe message is none")
 
-        await self.ws.send_message_through_websocket_and_receive_message(msg=unsubscribe_message)
+        await self.ws.sent_msg_to_websocket(msg=unsubscribe_message)
 
         for channel in channels:
             task = self.consumer_tasks.pop(channel, None)
 
             if task is not None:
                 task.cancel()
-
-            await asyncio.gather(task, return_exceptions=True)
+                await asyncio.gather(task, return_exceptions=True)
 
         for channel in channels:
             self.queue.pop(channel, None)
@@ -88,6 +89,13 @@ class StreamPipeline:
 
 
     async def run(self):
+
+        print(
+            f"PIPELINE START: "
+            f"{self.exchange_adapter.get_exchange_name(), len(self.exchange_adapter.channels)}",
+            flush=True
+        )
+
         self.producer_task = asyncio.create_task(self.producer())
         # making a copy thus changes can be made to self.queue without errors
         for channel in list(self.queue.keys()):
@@ -100,8 +108,28 @@ class StreamPipeline:
                 *self.consumer_tasks.values(),
             )
         except asyncio.CancelledError as e:
+
             print("asyncio.CancelledError, closing program: ",e)
+
+            print(
+                f"PIPELINE CANCELLED: "
+                f"{self.exchange_adapter.get_exchange_name()}",
+                flush=True
+            )
+
             await self.shutdown()
+
+        except Exception as e:
+            import traceback
+
+            print(
+                f"PIPELINE FAILED: "
+                f"{self.exchange_adapter.get_exchange_name()} "
+                f"{type(e).__name__}: {e}",
+                flush=True
+            )
+
+            traceback.print_exc()
 
             raise
 
@@ -111,15 +139,22 @@ class StreamPipeline:
             async for msg in self.ws.stream():
                 outcome = self.exchange_adapter.valid_message_can_pass_and_restructure_data(msg)
                 if outcome['valid']:
+
+
                     # channel = "" -trades
                     if isinstance(outcome['data'],list):
                         channel = outcome['data'][-1]['channel']
-                        for trade in outcome['data']:
-                            await self.queue[channel].put(trade)
+                        # required due to race conditions if channel values are removed
+                        queue = self.queue.get(channel)
+                        if queue is not None:
+                            for trade in outcome['data']:
+                                await queue.put(trade)
                     else:
                         # tickers
                         channel = outcome["data"]['channel']
-                        await self.queue[channel].put(outcome['data'])
+                        queue = self.queue.get(channel)
+                        if queue is not None:
+                            await queue.put(outcome['data'])
 
                         # await asyncio.sleep(0.1)
         except asyncio.CancelledError as e:
@@ -128,7 +163,7 @@ class StreamPipeline:
 
     async def process_batch(self, channel):
         # save the list location to a local variable
-        batch_to_write = self.batch_list[channel]
+        batch_to_write = self.batch_list.get(channel)
         try:
             # create a new list and a new memory location
             self.batch_list[channel] = []
@@ -141,17 +176,19 @@ class StreamPipeline:
         except Exception as e:
             print(f"error normalising data and pushing to thread to save: \n{e}")
             # if data fails to save we can carry it on to the original batch and try again on the next cycle
-            self.batch_list[channel] = batch_to_write + self.batch_list[channel]
+            self.batch_list[channel] = batch_to_write + self.batch_list.get(channel)
 
     async def consumer(self, channel):
+        # so the object exists outside the dictionary thus when removed it can still exist and close cleanly
+        queue = self.queue.get(channel)
         try:
             while True:
                 # await here means wait until another value is here, async then says if nothing is left I'll put this to sleep
-                mes = await self.queue[channel].get()
+                mes = await queue.get()
                 try:
-                    self.batch_list[channel].append(mes)
+                    self.batch_list.get(channel).append(mes)
 
-                    if len(self.batch_list[channel]) >= self.max_size_for_batch:
+                    if len(self.batch_list.get(channel)) >= self.max_size_for_batch:
                         await self.process_batch(channel=channel)
                 except Exception as e:
                     print("error on appending item to batch list: ", e)
@@ -159,10 +196,10 @@ class StreamPipeline:
                 # a finally is required here as this task has to be done
                 finally:
                     # technically not needed but if queue.join is used then this is required
-                    self.queue[channel].task_done()
+                    if queue is not None:
+                        queue.task_done()
 
         except asyncio.CancelledError as e:
-            print(f"asyncio.CancelledError in consumer {channel}, closing program: ", e)
-            await self.shutdown()
+            print(f"asyncio.CancelledError in consumer {channel}, closing consumer ", e)
             # required here to pass the error on forward through the program so all other async function can catch on
-            raise
+            return
