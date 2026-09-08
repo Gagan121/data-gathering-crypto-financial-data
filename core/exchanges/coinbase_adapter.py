@@ -3,6 +3,9 @@ from datetime import datetime
 from decimal import Decimal
 
 class CoinbaseAdapter(ExchangeAdapter):
+    def add_request_id(self, msg: dict, request_id) -> dict:
+        return msg
+
     def get_authentication_info(self) -> dict | None:
         pass
 

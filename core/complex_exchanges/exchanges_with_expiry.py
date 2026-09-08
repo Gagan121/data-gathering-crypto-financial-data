@@ -1,11 +1,26 @@
-from abc import abstractmethod
-from typing import TypeVar, Generic
+from __future__ import annotations
 
+from abc import abstractmethod, ABC
+from typing import TypeVar, Generic
 from core.exchanges.exchange_adapter import ExchangeAdapter
 
-T = TypeVar("T")
+from dataclasses import dataclass
 
-class ExchangeWithExpiry(ExchangeAdapter, Generic[T]):
+
+@dataclass
+class ExchangeConfig(ABC):
+    limit_number_of_channels: int
+    interval_type: str
+    base_url: str
+    msg: dict
+    websocket_url: str
+    exchange_name: str
+
+    @abstractmethod
+    def get_exchange_adapter_type(self) -> type:
+        pass
+
+class ExchangeWithExpiry(ExchangeAdapter):
 
     def __init__(self, base_url: str, exchange_info: dict, channels: list, exchange_name: str, websocket_url: str,
                  msg: dict, ticker: str, heart_beat_msg: dict | None = None,
@@ -17,7 +32,7 @@ class ExchangeWithExpiry(ExchangeAdapter, Generic[T]):
 
     @staticmethod
     @abstractmethod
-    def get_instruments(config: T) -> dict:
+    def get_instruments(config: ExchangeConfig) -> dict:
         pass
 
     @staticmethod
@@ -34,8 +49,9 @@ class ExchangeWithExpiry(ExchangeAdapter, Generic[T]):
     def set_channels(self, channels: list) -> None:
         self.channels = channels
 
+    @staticmethod
     @abstractmethod
-    def create_new_adapter(self, channels:list):
+    def create_new_adapter(channels:list, config:ExchangeConfig) -> ExchangeWithExpiry:
         pass
 
     @abstractmethod

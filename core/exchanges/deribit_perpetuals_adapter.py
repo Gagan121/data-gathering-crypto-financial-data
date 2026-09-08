@@ -8,6 +8,13 @@ load_dotenv()
 
 
 class DeribitPerpetualAdapter(ExchangeAdapter):
+
+    def add_request_id(self, msg:dict, request_id) -> dict:
+        if (msg is not None) and isinstance(msg, dict):
+            msg["id"] = request_id
+
+        return msg
+
     def __init__(self, channels:list, websocket_url:str, msg:dict, exchange_name:str, ticker:str, heart_beat_msg:dict, heart_beat_reply_msg:dict) -> None:
         super().__init__(channels=channels, exchange_name=exchange_name, websocket_url=websocket_url, msg=msg, ticker=ticker, heart_beat_msg=heart_beat_msg, heart_beat_reply_msg=heart_beat_reply_msg)
         load_dotenv()

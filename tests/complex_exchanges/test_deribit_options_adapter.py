@@ -2,10 +2,50 @@ import time
 import re
 import pytest
 from core.complex_exchanges.deribit_options_adapter import DeribitOptionsAdapter
+from core.manager.deribit_option_manager import DeribitOptionManager
+from core.pipeline.streampipeline import StreamPipeline
 from core.rest_requests.rest_client_requests import RestClient
 from decimal import Decimal
 import json
 from core.websockets.websocket_client import WebsocketClient
+from core.manager.manage_subscription import DeribitOptionsConfig
+import asyncio
+import math
+
+@pytest.fixture
+def deribit_option_config():
+    return DeribitOptionsConfig(
+        limit_number_of_channels=499,
+        interval_type="agg2",
+        currency="BTC",
+        expired="false",
+        data_types=["ticker", "trades"],
+        exchange_name="Test_Deribit_Options",
+        websocket_url="wss://www.deribit.com/ws/api/v2",
+        base_url="https://www.deribit.com/api/v2/",
+        # url="wss://test.deribit.com/ws/api/v2",
+        msg={
+            "jsonrpc": "2.0",
+            "method": "private/subscribe",
+            # "method": "public/subscribe",
+            "id": 42,
+            "params": {
+                "channels": []
+            }
+        },
+        heart_beat_msg={
+            "jsonrpc": "2.0",
+            "id": 10,
+            "method": "public/set_heartbeat",
+            "params": {"interval": 30}
+        },
+        heart_beat_reply_msg={
+            "jsonrpc": "2.0",
+            "method": "public/test",
+            "params": {},
+            "id": 1
+        }
+    )
 
 
 @pytest.fixture
@@ -23,7 +63,6 @@ def adapter_ticker():
             "params": {
                 "channels": [
                     "ticker.BTC-25DEC26-140000-C.agg2",
-
                 ]
             }
         },
@@ -38,7 +77,12 @@ def adapter_ticker():
             "method": "public/test",
             "params": {},
             "id": 1
-        }
+        },
+        exchange_info={
+            'currency': "BTC",
+            'expired': "false",
+        },
+        base_url="https://www.deribit.com/api/v2/",
     )
 
 
@@ -71,7 +115,12 @@ def adapter_trade():
             "method": "public/test",
             "params": {},
             "id": 1
-        }
+        },
+        exchange_info={
+            'currency': "BTC",
+            'expired': "false",
+        },
+        base_url="https://www.deribit.com/api/v2/",
     )
 
 
@@ -153,14 +202,79 @@ def model_data_trades():
     }
 
 
+@pytest.mark.asyncio
+async def test_channels_and_pipelines_removal_and_addition(deribit_option_config):
+    pipelines = []
+    limit_number_of_channels = 2
+    total_number_of_channels = 8
+    additional_channels = 3
+    deribit_option_manager = DeribitOptionManager(pipelines=pipelines, limit_of_number_of_channels=limit_number_of_channels)
 
-def test_rest_request_to_exchange_to_get_instruments():
-    data = {
-        'currency': "BTC",
-        'expired': "false",
-    }
-    base_url = "https://www.deribit.com/api/v2/"
-    information = DeribitOptionsAdapter.get_instruments(base_url=base_url, exchange_info=data)
+    list_of_instruments = deribit_option_manager.find_instruments(config=deribit_option_config)
+
+    list_of_channels = deribit_option_manager.format_instruments_to_channels(list_of_instruments, deribit_option_config)
+
+    new_channels:list = list_of_channels[-additional_channels:]
+
+    list_of_channels = list_of_channels[:total_number_of_channels]
+
+    # adding new channels from scratch
+    await deribit_option_manager.add_channels(channels_to_acquire=list_of_channels, config=deribit_option_config)
+
+    dict_of_channels_to_pipeline = deribit_option_manager.decompile_channels_to_pipeline()
+    deribit_option_manager.set_dict_of_channels_to_pipeline(dict_of_channels_to_pipeline=dict_of_channels_to_pipeline)
+
+    assert len(pipelines) == (total_number_of_channels/limit_number_of_channels)
+    assert set(list_of_channels) == set(dict_of_channels_to_pipeline.keys())
+
+    await asyncio.sleep(60)
+
+    # removing every other channel so every pipeline has a channels removed from it
+    channels_to_remove = list_of_channels[::2]
+
+    await deribit_option_manager.remove_channels(channels_to_remove=channels_to_remove)
+
+    dict_of_channels_to_pipeline = deribit_option_manager.decompile_channels_to_pipeline()
+    deribit_option_manager.set_dict_of_channels_to_pipeline(dict_of_channels_to_pipeline=dict_of_channels_to_pipeline)
+
+    assert len(pipelines) == (total_number_of_channels/limit_number_of_channels)
+    remaining_set_of_channels = set(list_of_channels) - set(channels_to_remove)
+    assert remaining_set_of_channels == set(dict_of_channels_to_pipeline.keys())
+
+    # adding new channels
+    await deribit_option_manager.add_channels(channels_to_acquire=(channels_to_remove+new_channels), config=deribit_option_config)
+
+    dict_of_channels_to_pipeline = deribit_option_manager.decompile_channels_to_pipeline()
+    deribit_option_manager.set_dict_of_channels_to_pipeline(dict_of_channels_to_pipeline=dict_of_channels_to_pipeline)
+
+    assert (additional_channels + total_number_of_channels) == len(dict_of_channels_to_pipeline.keys())
+    assert len(pipelines) == math.ceil((additional_channels + total_number_of_channels) / limit_number_of_channels)
+
+    await asyncio.sleep(60)
+
+    # removing new channels
+    await deribit_option_manager.remove_channels(channels_to_remove=new_channels)
+
+    dict_of_channels_to_pipeline = deribit_option_manager.decompile_channels_to_pipeline()
+    deribit_option_manager.set_dict_of_channels_to_pipeline(dict_of_channels_to_pipeline=dict_of_channels_to_pipeline)
+
+    assert len(pipelines) == math.ceil(total_number_of_channels / limit_number_of_channels)
+    assert len(dict_of_channels_to_pipeline.keys()) == total_number_of_channels
+
+
+
+    # removing all channels and see how all the pipelines will close
+    await deribit_option_manager.remove_channels(channels_to_remove=list(dict_of_channels_to_pipeline.keys()) )
+
+    assert len(pipelines) == 0
+
+
+
+
+
+
+def test_rest_request_to_exchange_to_get_instruments(deribit_option_config):
+    information = DeribitOptionsAdapter.get_instruments(deribit_option_config)
     # function below does similar logic and there is a ratelimit on how many times you can call the function above, thus sleep gives a break.
     time.sleep(1)
 
@@ -171,37 +285,11 @@ def test_rest_request_to_exchange_to_get_instruments():
 
 
 
-def test_helper_function_to_make_multiple_adapters():
-    deribit_option_adapters = DeribitOptionsAdapter.generate_deribit_option_adapters(
-        interval_type="agg2",
-        currency="BTC",
-        expired="false",
-        data_types=["ticker", "trades"],
-        exchange_name="Deribit_Options",
-        websocket_url="wss://www.deribit.com/ws/api/v2",
-        base_url = "https://www.deribit.com/api/v2/",
-        # url="wss://test.deribit.com/ws/api/v2",
-        msg={
-            "jsonrpc": "2.0",
-            "method": "public/subscribe",
-            "id": 42,
-            "params": {
-                "channels": []
-            }
-        },
-        heart_beat_msg={
-            "jsonrpc": "2.0",
-            "id": 10,
-            "method": "public/set_heartbeat",
-            "params": {"interval": 30}
-        },
-        heart_beat_reply_msg={
-            "jsonrpc": "2.0",
-            "method": "public/test",
-            "params": {},
-            "id": 1
-        }
-    )
+def test_helper_function_to_make_multiple_adapters(deribit_option_config):
+
+    deribit_option_adapters = DeribitOptionManager.generate_multiple_adapters(deribit_option_config)
+
+
     channel_is_option = True
     channel_number_under_limit = True
     channel_category = {

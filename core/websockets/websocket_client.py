@@ -33,6 +33,12 @@ class WebsocketClient:
         self.ws = None
 
     async def stream(self):
+        print(
+            f"STREAM STARTED: "
+            f"{self.exchange_adapter.get_exchange_name(), "number of channels", len(self.exchange_adapter.channels)} "
+            f"{time.time()}",
+            flush=True
+        )
         # worth noting that scheduled maintenance can knock off connection and cause issues with API rate limiting
         delay = 10
         try:
@@ -113,6 +119,9 @@ class WebsocketClient:
 
         request_id = self.get_next_request_id()
         new_msg = self.exchange_adapter.add_request_id(msg=msg, request_id=request_id)
+
+        if new_msg is None:
+            raise ValueError("new_msg, data given from add_request_id has returned None, if no id value can be added then return the original message")
 
         try:
             await self.ws.send(json.dumps(new_msg))

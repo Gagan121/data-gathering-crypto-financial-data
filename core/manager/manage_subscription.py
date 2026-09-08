@@ -1,11 +1,12 @@
 import asyncio
+import math
 import time
 
 import copy
 from typing import TypeVar, Generic
 
 from core.complex_exchanges.deribit_options_adapter import DeribitOptionsConfig
-from core.complex_exchanges.exchanges_with_expiry import ExchangeWithExpiry
+from core.complex_exchanges.exchanges_with_expiry import ExchangeWithExpiry, ExchangeConfig
 from abc import ABC, abstractmethod
 
 from core.pipeline.streampipeline import StreamPipeline
@@ -25,7 +26,7 @@ class ManageSubscription(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def find_instruments(self, config: T) -> list:
+    def find_instruments(self, config: ExchangeConfig) -> list:
         pass
 
     @staticmethod
@@ -38,6 +39,10 @@ class ManageSubscription(ABC, Generic[T]):
     def convert_data_to_single_list_of_channels(data:list) -> list:
         pass
 
+    def set_dict_of_channels_to_pipeline(self, dict_of_channels_to_pipeline: dict):
+        self.dict_of_channel_to_pipeline = dict_of_channels_to_pipeline
+
+
     def decompile_channels_to_pipeline(self):
         channel_to_adapter = dict()
         for i in range(len(self.pipelines)):
@@ -46,6 +51,8 @@ class ManageSubscription(ABC, Generic[T]):
                 channel_to_adapter[channel] = pipeline
 
         return channel_to_adapter
+
+
 
 
     def compare_pipelines_with_newly_gathered_instruments(self, list_of_instruments) -> dict[str, list[str]]:
@@ -111,12 +118,12 @@ class ManageSubscription(ABC, Generic[T]):
         exchange_with_expiry.set_channels(total_channels_in_pipeline)
 
 
-    def create_new_pipeline_to_handle_new_channels(self, pipeline:StreamPipeline, channels:list):
-        exchange_with_expiry = pipeline.get_exchange_adapter()
-        if not isinstance(exchange_with_expiry, ExchangeWithExpiry):
-            raise ValueError("create new pipeline parent is no ExchangeWithExpiry")
-
-        new_exchange_with_expiry = exchange_with_expiry.create_new_adapter(channels=channels)
+    def create_new_pipeline_to_handle_new_channels(self, channels:list, config: ExchangeConfig):
+        if len(channels) <= 0: return
+        exchange_with_expiry_type = config.get_exchange_adapter_type()
+        if not issubclass(exchange_with_expiry_type, ExchangeWithExpiry):
+            return
+        new_exchange_with_expiry = exchange_with_expiry_type.create_new_adapter(channels=channels, config=config)
         new_exchange_with_expiry.set_channels_in_msg()
 
         new_pipeline = StreamPipeline(new_exchange_with_expiry)
@@ -127,7 +134,7 @@ class ManageSubscription(ABC, Generic[T]):
 
 
 
-    async def add_channels(self, channels_to_acquire):
+    async def add_channels(self, channels_to_acquire:list , config: ExchangeConfig):
 
         for pipeline in self.pipelines:
 
@@ -154,11 +161,13 @@ class ManageSubscription(ABC, Generic[T]):
         # channels_to_acquire = ['ticker.BTC-6SEP26-68000-P.agg2']
 
         if len(channels_to_acquire) > 0:
-            if len(self.pipelines) <= 0:
-                raise ValueError("could not create a new pipeline as none exist")
-            pipeline = self.pipelines[0]
-            self.create_new_pipeline_to_handle_new_channels(pipeline=pipeline, channels=channels_to_acquire)
-    #
+
+            number_of_loops = math.ceil(len(channels_to_acquire) / self.limit_of_number_of_channels)
+
+            for i in range(number_of_loops):
+                grouped_channels_to_acquire = channels_to_acquire[:self.limit_of_number_of_channels]
+                self.create_new_pipeline_to_handle_new_channels(channels=grouped_channels_to_acquire, config=config)
+                channels_to_acquire = channels_to_acquire[self.limit_of_number_of_channels:]
 
 
     async def shutdown(self):
@@ -171,7 +180,7 @@ class ManageSubscription(ABC, Generic[T]):
 
 
 
-    async def run(self, config: T):
+    async def run(self, config: ExchangeConfig):
         try:
             while True:
                 await asyncio.sleep(60)
@@ -189,7 +198,7 @@ class ManageSubscription(ABC, Generic[T]):
 
                 # dict_of_channels_to_acquire_and_remove["required"] = ['ticker.BTC-6SEP26-68000-C.agg2']
 
-                await self.add_channels(channels_to_acquire=dict_of_channels_to_acquire_and_remove["required"])
+                await self.add_channels(channels_to_acquire=dict_of_channels_to_acquire_and_remove["required"], config=config)
 
                 # await asyncio.sleep(10)
 

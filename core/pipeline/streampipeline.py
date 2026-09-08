@@ -40,6 +40,7 @@ class StreamPipeline:
             self.batch_list[channel] = []
 
             self.consumer_tasks[channel] = asyncio.create_task(self.consumer(channel))
+            print(f"subscribing to channel {channel}")
 
         await self.ws.sent_msg_to_websocket(msg=subscribe_message)
 

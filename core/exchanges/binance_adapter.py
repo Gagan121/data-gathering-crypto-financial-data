@@ -5,6 +5,12 @@ from datetime import datetime
 from decimal import Decimal
 
 class BinanceAdapter(ExchangeAdapter):
+
+    def add_request_id(self, msg:dict, request_id) -> dict:
+        if (msg is not None) and isinstance(msg, dict):
+            msg["id"] = request_id
+        return msg
+
     def get_authentication_info(self) -> dict | None:
         pass
 

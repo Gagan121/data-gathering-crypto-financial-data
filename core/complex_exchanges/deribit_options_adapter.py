@@ -2,7 +2,7 @@ import time
 from datetime import datetime
 from decimal import Decimal
 from core.exchanges.exchange_adapter import flatten, convert_to_decimal_and_quantize
-from core.complex_exchanges.exchanges_with_expiry import ExchangeWithExpiry
+from core.complex_exchanges.exchanges_with_expiry import ExchangeWithExpiry, ExchangeConfig
 from core.rest_requests.rest_client_requests import RestClient
 import os
 from dotenv import load_dotenv
@@ -13,7 +13,7 @@ from dataclasses import dataclass, fields
 load_dotenv()
 
 @dataclass
-class DeribitOptionsConfig:
+class DeribitOptionsConfig(ExchangeConfig):
     limit_number_of_channels: int
     interval_type: str
     base_url: str
@@ -25,6 +25,15 @@ class DeribitOptionsConfig:
     exchange_name: str
     heart_beat_msg: dict
     heart_beat_reply_msg: dict
+
+    def get_exchange_adapter_type(self) -> type:
+        return DeribitOptionsAdapter
+
+    def get_exchange_info(self) -> dict:
+        return {
+            'currency': self.currency,
+            'expired': self.expired,
+        }
 
     def __post_init__(self):
 
@@ -49,7 +58,7 @@ class DeribitOptionsConfig:
 #         check all values are not None
 
 
-class DeribitOptionsAdapter(ExchangeWithExpiry[DeribitOptionsConfig]):
+class DeribitOptionsAdapter(ExchangeWithExpiry):
 
     # used to get the number of instruments we are looking for
     def __init__(self, base_url:str, exchange_info:dict, channels: list, exchange_name: str, websocket_url: str, msg: dict, ticker: str,
@@ -61,17 +70,18 @@ class DeribitOptionsAdapter(ExchangeWithExpiry[DeribitOptionsConfig]):
         self._client_id = os.getenv("DERIBIT_PERPETUAL_CLIENT_ID")
         self._client_secret = os.getenv("DERIBIT_PERPETUAL_CLIENT_SECRET")
 
-    def create_new_adapter(self, channels:list):
-        return type(self)(
-            base_url=self.base_url,
-            exchange_info=copy.deepcopy(self.exchange_info),
+    @staticmethod
+    def create_new_adapter(channels:list, config:DeribitOptionsConfig) -> ExchangeWithExpiry:
+        return (config.get_exchange_adapter_type())(
+            base_url=config.base_url,
+            exchange_info=copy.deepcopy(config.get_exchange_info()),
             channels=channels,
-            exchange_name=self.exchange_name,
-            websocket_url=self.websocket_url,
-            msg=copy.deepcopy(self.msg),
-            ticker=self.ticker,
-            heart_beat_msg=copy.deepcopy(self.heart_beat_msg),
-            heart_beat_reply_msg=copy.deepcopy(self.heart_beat_reply_msg)
+            exchange_name=config.exchange_name,
+            websocket_url=config.websocket_url,
+            msg=copy.deepcopy(config.msg),
+            ticker=config.currency,
+            heart_beat_msg=copy.deepcopy(config.heart_beat_msg),
+            heart_beat_reply_msg=copy.deepcopy(config.heart_beat_reply_msg)
         )
 
 

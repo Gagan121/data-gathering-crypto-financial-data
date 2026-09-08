@@ -7,12 +7,11 @@ class DeribitOptionManager(ManageSubscription[DeribitOptionsConfig]):
     def __init__(self, pipelines: list, limit_of_number_of_channels:int):
         super().__init__(pipelines=pipelines, limit_of_number_of_channels=limit_of_number_of_channels)
 
+        self.exchange_type = DeribitOptionsAdapter
+
     @classmethod
     def generate_multiple_adapters(cls, deribit_options_config:DeribitOptionsConfig) -> list:
-        data = {
-            'currency': deribit_options_config.currency,
-            'expired': deribit_options_config.expired,
-        }
+
         information = DeribitOptionsAdapter.get_instruments(config=deribit_options_config)
         # true if information is there
         if not (bool(information)):
@@ -38,7 +37,7 @@ class DeribitOptionManager(ManageSubscription[DeribitOptionsConfig]):
                     heart_beat_msg=deribit_options_config.heart_beat_msg,
                     heart_beat_reply_msg=deribit_options_config.heart_beat_reply_msg,
                     base_url=deribit_options_config.base_url,
-                    exchange_info=data,
+                    exchange_info=deribit_options_config.get_exchange_info(),
                 )
             )
 
@@ -65,16 +64,13 @@ class DeribitOptionManager(ManageSubscription[DeribitOptionsConfig]):
 
 
     def find_instruments(self, config:DeribitOptionsConfig) -> list:
-        if len(self.pipelines) <= 0:
+        exchange_with_expiry_type = config.get_exchange_adapter_type()
+
+        if not issubclass(exchange_with_expiry_type, ExchangeWithExpiry):
             return []
 
-        exchange_adapter_with_expiry = self.pipelines[0].get_exchange_adapter()
-
-        if not isinstance(exchange_adapter_with_expiry, ExchangeWithExpiry):
-            return []
-
-        information = exchange_adapter_with_expiry.get_instruments(config=config)
-        list_of_instruments_dict = exchange_adapter_with_expiry.sort_data_form_new_requests(information)
+        information = exchange_with_expiry_type.get_instruments(config=config)
+        list_of_instruments_dict = exchange_with_expiry_type.sort_data_form_new_requests(information)
 
         return list_of_instruments_dict
 
