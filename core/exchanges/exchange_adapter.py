@@ -81,7 +81,7 @@ class ExchangeAdapter(ABC):
         pass
 
     @abstractmethod
-    def get_refresh_authentication_info(self) -> dict:
+    def get_refresh_authentication_info(self) -> dict|None:
         pass
 
     @abstractmethod

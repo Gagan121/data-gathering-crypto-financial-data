@@ -59,7 +59,12 @@ class WebsocketClient:
 
                         data = json.loads(message)
                         sys_time = time.time()
-                        data['sys_time'] = sys_time
+
+                        if isinstance(data, list):
+                            time_dict = {'sys_time':sys_time}
+                            data.append(time_dict)
+                        elif isinstance(data, dict):
+                            data['sys_time'] = sys_time
 
                         await self.filter_message_and_respond(data)
 

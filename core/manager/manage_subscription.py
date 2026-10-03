@@ -192,6 +192,8 @@ class ManageSubscription(ABC, Generic[T]):
                 self.dict_of_channel_to_pipeline = self.decompile_channels_to_pipeline()
                 dict_of_channels_to_acquire_and_remove = self.compare_pipelines_with_newly_gathered_instruments(list_of_channels)
 
+                print(dict_of_channels_to_acquire_and_remove)
+
                 # dict_of_channels_to_acquire_and_remove["remove"] = ['ticker.BTC-6SEP26-68000-C.agg2','ticker.BTC-6SEP26-68000-P.agg2']
 
                 await self.remove_channels(channels_to_remove=dict_of_channels_to_acquire_and_remove['remove'])
@@ -201,6 +203,8 @@ class ManageSubscription(ABC, Generic[T]):
                 await self.add_channels(channels_to_acquire=dict_of_channels_to_acquire_and_remove["required"], config=config)
 
                 # await asyncio.sleep(10)
+        except Exception as e:
+            print(e)
 
         except asyncio.CancelledError as e:
             print(f"asyncio.CancelledError in run in manager_subscription, closing program: ", e)

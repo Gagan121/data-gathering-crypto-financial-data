@@ -141,7 +141,6 @@ class StreamPipeline:
                 outcome = self.exchange_adapter.valid_message_can_pass_and_restructure_data(msg)
                 if outcome['valid']:
 
-
                     # channel = "" -trades
                     if isinstance(outcome['data'],list):
                         channel = outcome['data'][-1]['channel']
@@ -150,12 +149,27 @@ class StreamPipeline:
                         if queue is not None:
                             for trade in outcome['data']:
                                 await queue.put(trade)
-                    else:
-                        # tickers
-                        channel = outcome["data"]['channel']
-                        queue = self.queue.get(channel)
-                        if queue is not None:
-                            await queue.put(outcome['data'])
+
+                    elif isinstance(outcome['data'], dict):
+
+                        # this must be polymarket data
+                        if "book" in outcome['data'] or "price_changes" in outcome['data']:
+                            key = list(outcome['data'].keys())[0]
+                            if isinstance(outcome['data'][key], list):
+
+                                for item in outcome['data'][key]:
+                                    channel = item['asset_id']
+                                    queue = self.queue.get(channel)
+                                    if queue is not None:
+                                        await queue.put(item)
+
+
+                        else:
+                            # tickers -> for non polymarket data
+                            channel = outcome["data"]['channel']
+                            queue = self.queue.get(channel)
+                            if queue is not None:
+                                await queue.put(outcome['data'])
 
                         # await asyncio.sleep(0.1)
         except asyncio.CancelledError as e:
@@ -200,7 +214,12 @@ class StreamPipeline:
                     if queue is not None:
                         queue.task_done()
 
+        except Exception as e:
+            print(e)
+
         except asyncio.CancelledError as e:
             print(f"asyncio.CancelledError in consumer {channel}, closing consumer ", e)
+            # import traceback
+            # traceback.print_stack()
             # required here to pass the error on forward through the program so all other async function can catch on
             return
