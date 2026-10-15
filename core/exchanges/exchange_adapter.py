@@ -72,6 +72,28 @@ class ExchangeAdapter(ABC):
     def restructure_data(self, data) -> dict|list:
         pass
 
+    def ensure_list(self, data) -> list[dict]:
+
+        if data is None:
+            return []
+
+        if isinstance(data, dict):
+            return [data]
+
+        if isinstance(data, list):
+            return data
+
+        raise TypeError(
+            f"Expected dict, list or None, "
+            f"got {type(data).__name__}"
+        )
+
+
+
+
+
+
+
     @abstractmethod
     def validate_message(self, msg) -> bool:
         pass
@@ -124,7 +146,7 @@ class ExchangeAdapter(ABC):
         bool_1 = self.validate_message(msg)
         if bool_1:
             # if data doesn't have the right keys
-            data = self.restructure_data(msg)
+            data = self.ensure_list(self.restructure_data(msg))
             # encase our data is empty then
             bool_2 = bool(data)
             # data is saved on the exchange adapter for the time being as its a large piece of data, and remaking is a waste of time

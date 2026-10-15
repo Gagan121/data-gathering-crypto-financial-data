@@ -52,6 +52,10 @@ def test_validate_message_valid_message(adapter, model_data):
     outcome = adapter.valid_message_can_pass_and_restructure_data(model_data)
     assert  outcome["valid"] == True
 
+    ideal_message = [{'channel': 'ticker', 'exch_ts_sec': 1780765543, 'exch_ts_micro': 761792, 'sys_ts_sec': 1734282093, 'sys_ts_micro': 0, 'price': Decimal('60696.8'), 'bid': Decimal('60695.94'), 'ask': Decimal('60695.95'), 'bid_quantity': Decimal('0.03004871'), 'ask_quantity': Decimal('0.02210567')}]
+    assert isinstance(outcome["data"] , list)
+    assert outcome["data"] == ideal_message
+
 
 # def test_validate_message_duplicate_prices(adapter, model_data):
 #     assert adapter.valid_message_can_pass_and_restructure_data(model_data) == True

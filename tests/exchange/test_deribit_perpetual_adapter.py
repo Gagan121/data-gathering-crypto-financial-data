@@ -197,6 +197,10 @@ def test_valid_message_ticker(adapter_ticker, model_data_ticker):
     outcome = adapter_ticker.valid_message_can_pass_and_restructure_data(model_data_ticker)
     assert outcome['valid'] == True
 
+    ideal_message = [{'channel': 'ticker.BTC-PERPETUAL.raw', 'exch_ts_sec': 1787738639, 'exch_ts_micro': 996999, 'sys_ts_sec': 1787738645, 'sys_ts_micro': 86210, 'bid': Decimal('78388.0000000'), 'ask': Decimal('78388.5000000'), 'bid_quantity': Decimal('14410.0000000'), 'ask_quantity': Decimal('36580.0000000'), 'high': Decimal('79561.5000000'), 'low': Decimal('77859.0000000'), 'price_change': Decimal('-0.8092000'), 'volume': Decimal('5737.7872331'), 'volume_usd': Decimal('452609800.0000000'), 'volume_notional': Decimal('452609800.0000000'), 'index_price': Decimal('78358.6200000'), 'last_price': Decimal('78389.0000000'), 'settlement_price': Decimal('78928.8500000'), 'min_price': Decimal('77210.0000000'), 'max_price': Decimal('79562.0000000'), 'open_interest': 908588760, 'mark_price': Decimal('78385.9000000'), 'interest_value': Decimal('0.0097442'), 'current_funding': Decimal('0.0000981'), 'estimated_delivery_price': Decimal('78358.6200000'), 'funding_8h': Decimal('0.0000493')}]
+    assert isinstance(outcome["data"] , list)
+    assert outcome["data"] == ideal_message
+
 def test_invalid_message_ticker(adapter_ticker):
     msg = {
         'jsonrpc': '2.0',
@@ -217,6 +221,11 @@ def test_invalid_message_ticker(adapter_ticker):
 def test_validate_message_valid_message_trade(adapter_trade, model_data_trades):
     outcome = adapter_trade.valid_message_can_pass_and_restructure_data(model_data_trades)
     assert outcome['valid'] == True
+
+    ideal_message = [{'channel': 'trades.BTC-PERPETUAL.raw', 'sys_ts_sec': 1787738702, 'sys_ts_micro': 546158, 'exch_ts_sec': 1787738641, 'exch_ts_micro': 940999, 'price': Decimal('78394.0000000'), 'direction': 'buy', 'index_price': Decimal('78361.4300000'), 'instrument_name': 'BTC-PERPETUAL', 'trade_seq': 297373679, 'amount': Decimal('140.0000000'), 'mark_price': Decimal('78388.9200000'), 'tick_direction': 0, 'starbase_match_id': 218309504809316352, 'trade_id': Decimal('442230029'), 'contracts': Decimal('14.0000000'), 'starbase_timestamp': 1787738641941535937}, {'channel': 'trades.BTC-PERPETUAL.raw', 'sys_ts_sec': 1787738702, 'sys_ts_micro': 546158, 'exch_ts_sec': 1787738641, 'exch_ts_micro': 940999, 'price': Decimal('78394.0000000'), 'direction': 'buy', 'index_price': Decimal('78361.4300000'), 'instrument_name': 'BTC-PERPETUAL', 'trade_seq': 297373680, 'amount': Decimal('420.0000000'), 'mark_price': Decimal('78388.9200000'), 'tick_direction': 1, 'starbase_match_id': 218309504809316353, 'trade_id': Decimal('442230030'), 'contracts': Decimal('42.0000000'), 'starbase_timestamp': 1787738641941535937}]
+
+    assert isinstance(outcome["data"] , list)
+    assert outcome["data"] == ideal_message
 
 
 def test_invalid_message_trade(adapter_trade):

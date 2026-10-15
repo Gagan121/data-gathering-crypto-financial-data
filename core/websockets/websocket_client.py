@@ -59,6 +59,9 @@ class WebsocketClient:
 
                         data = json.loads(message)
                         sys_time = time.time()
+                        # if data is empty ignore it occurs with polymarket
+                        if not bool(data):
+                            continue
 
                         if isinstance(data, list):
                             time_dict = {'sys_time':sys_time}

@@ -192,7 +192,7 @@ class ManageSubscription(ABC, Generic[T]):
                 self.dict_of_channel_to_pipeline = self.decompile_channels_to_pipeline()
                 dict_of_channels_to_acquire_and_remove = self.compare_pipelines_with_newly_gathered_instruments(list_of_channels)
 
-                print(dict_of_channels_to_acquire_and_remove)
+                # print(dict_of_channels_to_acquire_and_remove)
 
                 # dict_of_channels_to_acquire_and_remove["remove"] = ['ticker.BTC-6SEP26-68000-C.agg2','ticker.BTC-6SEP26-68000-P.agg2']
 

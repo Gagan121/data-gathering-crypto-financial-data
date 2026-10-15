@@ -1,5 +1,6 @@
 import json
 import time
+import gzip
 from datetime import datetime
 from decimal import Decimal
 from typing import override
@@ -23,7 +24,6 @@ class PolymarketConfig(ExchangeConfig):
     interval_type:str
     base_url: str
     msg: dict
-    slug: str
     websocket_url: str
     exchange_name: str
     series_id: str
@@ -73,6 +73,7 @@ class PolymarketAdapter(ExchangeWithExpiry):
     @classmethod
     def remove_event_info_to_dict(cls, key):
         return cls.event_info.pop(key, None)
+
 
 
 
@@ -207,31 +208,41 @@ class PolymarketAdapter(ExchangeWithExpiry):
 
     def validate_message(self, msg) -> bool:
 
-        outcome = False
+        outcome = bool(msg)
 
-        is_standard_valid = bool(msg)
-
-        if is_standard_valid:
-            if isinstance(msg, list) and len(msg) > 0:
-                outcome = (
-                        isinstance(msg[0], dict)
-                        and "bids" in msg[0]
-                        and "asks" in msg[0]
-                        and "timestamp" in msg[0]
-                        and "tick_size" in msg[0]
-                        and "event_type" in msg[0]
-                        and "market" in msg[0]
-                        and "asset_id" in msg[0]
-                )
-            elif isinstance(msg, dict) and "price_changes" in msg and isinstance(msg["price_changes"], list) and len(msg["price_changes"]) > 0:
-                outcome = (
-                        "asset_id" in msg['price_changes'][0]
-                        and "price" in msg['price_changes'][0]
-                        and "size" in msg['price_changes'][0]
-                        and "side" in msg['price_changes'][0]
-                        and "best_bid" in msg['price_changes'][0]
-                        and "best_ask" in msg['price_changes'][0]
-                )
+        # is_standard_valid = bool(msg)
+        #
+        # if is_standard_valid:
+        #     if isinstance(msg, list) and len(msg) > 0:
+        #         outcome = (
+        #                 isinstance(msg[0], dict)
+        #                 and "bids" in msg[0]
+        #                 and "asks" in msg[0]
+        #                 and "timestamp" in msg[0]
+        #                 and "tick_size" in msg[0]
+        #                 and "event_type" in msg[0]
+        #                 and "market" in msg[0]
+        #                 and "asset_id" in msg[0]
+        #         )
+        #     elif isinstance(msg, dict) and "price_changes" in msg and isinstance(msg["price_changes"], list) and len(msg["price_changes"]) > 0:
+        #         outcome = (
+        #                 "asset_id" in msg['price_changes'][0]
+        #                 and "price" in msg['price_changes'][0]
+        #                 and "size" in msg['price_changes'][0]
+        #                 and "side" in msg['price_changes'][0]
+        #                 and "best_bid" in msg['price_changes'][0]
+        #                 and "best_ask" in msg['price_changes'][0]
+        #         )
+        #     elif isinstance(msg, dict) and "event_type" in msg and msg["event_type"] == "book" and ("bids" in msg) and ("asks" in msg):
+        #         outcome = (
+        #                 isinstance(msg['bids'], list) and len(msg['bids']) > 0
+        #                 and isinstance(msg['asks'], list) and len(msg['asks']) > 0
+        #         )
+        #     elif isinstance(msg, dict) and "event_type" in msg and msg["event_type"] == "last_trade_price" and ("price" in msg) and ("size" in msg):
+        #         outcome = (msg['price'] is not None) and (msg['size'] is not None)
+        #
+        #     else:
+        #         print(msg)
 
         return outcome
 
@@ -242,7 +253,12 @@ class PolymarketAdapter(ExchangeWithExpiry):
 
 
         if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
-            event_type:str = data[0]["event_type"]
+
+            if "event_type" not in data[0]:
+                return []
+
+            # we need this here as we are getting the time of hte event captured which is stored as a dict at the end of a list in the websocket client
+            # Thus we need to get the LAST element from this list
             if "sys_time" in data[-1]:
                 sys_time = data[-1]["sys_time"]
                 sys_ts_sec = int(sys_time)
@@ -250,8 +266,9 @@ class PolymarketAdapter(ExchangeWithExpiry):
                 removed_item = data.pop(-1)
                 for item in data:
                     PolymarketAdapter.add_new_formatted_timestamp(data_dict=item, timestamp_sys=sys_time,timestamp_exc=int(item["timestamp"]), sys_ts_sec=sys_ts_sec, sys_ts_micro=sys_ts_micro)
+                    item['channel'] = item['asset_id']
 
-            return {event_type : data}
+                return data
 
         if isinstance(data, dict) and "event_type" in data:
             if "price_changes" in data:
@@ -261,9 +278,28 @@ class PolymarketAdapter(ExchangeWithExpiry):
                     for item in price_changes_list:
                         item[key] = data[key]
 
-                return {"price_changes": price_changes_list}
+                for item in price_changes_list:
+                    item["channel"] = item['asset_id']
 
-        return data
+                return price_changes_list
+
+            elif (
+                    ("book" in data["event_type"])
+                    or ("last_trade_price" in data["event_type"])
+                    or ("tick_size_change" in data["event_type"])
+            ):
+                # check these events work with the events below in the streampipline -> as we converting them to lists and saving them that way
+                PolymarketAdapter.add_new_formatted_timestamp(data_dict=data, timestamp_sys=data["sys_time"],timestamp_exc=int(data["timestamp"]))
+                data['channel'] = data['asset_id']
+
+                return data
+            # remove this if we catch nothing
+            else:
+                print(data)
+        #     remove this if we catch nothing over a day
+
+        # we have gone through all filtering if we can't sort it assume it is failed data
+        return []
 
     # getting a dict and passing new formatted datetime stamps into the object
     @staticmethod
@@ -281,13 +317,15 @@ class PolymarketAdapter(ExchangeWithExpiry):
         data_dict['sys_ts_sec'] = sys_ts_sec
         data_dict['sys_ts_micro'] = sys_ts_micro
 
-    def write_meta_data_file(self, path_to_file:str, event_info:dict):
+    def write_data_file(self, path_to_file:str, info):
         for i in range(3):
             try:
-                data = json.dumps(event_info)
-                with open(path_to_file, 'w+') as f:
+                # compresses files to make sure the files don't take up too much space
+                with gzip.open(path_to_file, 'wt', encoding="utf-8", compresslevel=9) as f:
+                    data = json.dumps(info, separators=(",", ":")) + "\n"
                     f.write(data)
-                    return
+
+                return
             except Exception as e:
                 print(e, "could not save meta data file for ", path_to_file)
 
@@ -299,7 +337,6 @@ class PolymarketAdapter(ExchangeWithExpiry):
         # try to write 3 times before giving up
         for i in range(3):
             try:
-                df = pd.DataFrame(normalised_list_of_data)
                 channel = normalised_list_of_data[0]['asset_id']
 
                 event_info = PolymarketAdapter.event_info.get(channel)
@@ -321,19 +358,19 @@ class PolymarketAdapter(ExchangeWithExpiry):
 
                 naming_parts = full_single_channel.split("_")
 
-                filename = f"data_{self.exchange_name}_{full_single_channel}_{int(time.time())}.parquet"
+                filename = f"data_{self.exchange_name}_{full_single_channel}_{int(time.time())}.jsonl.gz"
                 # the path package finds the folder at the highest level that is the same data -it all relative
                 meta_data_dir =  (self.PATH_DIR / self.exchange_name/ naming_parts[0] / naming_parts[1] )
                 meta_data_dir.mkdir(parents=True, exist_ok=True)
-                meta_data_dir_to_file = (meta_data_dir / "meta_data.json").resolve()
+                meta_data_dir_to_file = (meta_data_dir / "meta_data.json.gz").resolve()
                 if not os.path.exists(meta_data_dir_to_file):
                     # create meta data file
-                    self.write_meta_data_file(path_to_file=meta_data_dir_to_file, event_info=event_info)
+                    self.write_data_file(path_to_file=meta_data_dir_to_file, info=event_info)
 
                 new_dir = (self.PATH_DIR / self.exchange_name/ naming_parts[0] / naming_parts[1] / naming_parts[2] )
                 new_dir.mkdir(parents=True, exist_ok=True)
                 dir_to_file = new_dir / filename
-                df.to_parquet(path=dir_to_file.resolve())
+                self.write_data_file(path_to_file=dir_to_file.resolve(), info=normalised_list_of_data)
                 # exit for loop
                 return
             except Exception as e:

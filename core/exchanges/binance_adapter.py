@@ -38,6 +38,7 @@ class BinanceAdapter(ExchangeAdapter):
             # if we ignore the duplication and just see what comes in for now we can see if any patterns come up
             if isinstance(data, dict):
                 bool_3 = self.check_quotes_diff(data)
+                data = self.ensure_list(data)
 
             return {
                 "valid" : (bool_1 and bool_2 and bool_3),

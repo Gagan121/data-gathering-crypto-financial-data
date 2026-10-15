@@ -140,38 +140,50 @@ class StreamPipeline:
             async for msg in self.ws.stream():
                 outcome = self.exchange_adapter.valid_message_can_pass_and_restructure_data(msg)
                 if outcome['valid']:
-
-                    # channel = "" -trades
                     if isinstance(outcome['data'],list):
-                        channel = outcome['data'][-1]['channel']
-                        # required due to race conditions if channel values are removed
-                        queue = self.queue.get(channel)
-                        if queue is not None:
-                            for trade in outcome['data']:
-                                await queue.put(trade)
-
-                    elif isinstance(outcome['data'], dict):
-
-                        # this must be polymarket data
-                        if "book" in outcome['data'] or "price_changes" in outcome['data']:
-                            key = list(outcome['data'].keys())[0]
-                            if isinstance(outcome['data'][key], list):
-
-                                for item in outcome['data'][key]:
-                                    channel = item['asset_id']
-                                    queue = self.queue.get(channel)
-                                    if queue is not None:
-                                        await queue.put(item)
-
-
-                        else:
-                            # tickers -> for non polymarket data
-                            channel = outcome["data"]['channel']
+                        for single_data in outcome['data']:
+                            channel = single_data["channel"]
+                            # required due to race conditions if channel values are removed
                             queue = self.queue.get(channel)
                             if queue is not None:
-                                await queue.put(outcome['data'])
-
-                        # await asyncio.sleep(0.1)
+                                await queue.put(single_data)
+                    # # -----------------------scrap the below we have to make sure all restructuring event are return with a envolped event in a list
+                    # elif isinstance(outcome['data'], dict):
+                    #
+                    #     # this must be polymarket data
+                    #     if "book" in outcome['data'] or "price_changes" in outcome['data']:
+                    #         key = list(outcome['data'].keys())[0]
+                    #         if isinstance(outcome['data'][key], list):
+                    #
+                    #             for item in outcome['data'][key]:
+                    #                 channel = item['asset_id']
+                    #                 queue = self.queue.get(channel)
+                    #                 if queue is not None:
+                    #                     await queue.put(item)
+                    #
+                    #     elif (
+                    #             "event_type" in outcome["data"] and (
+                    #                 "book" in outcome['data']['event_type']
+                    #                 or "last_trade_price" in outcome['data']['event_type']
+                    #             )
+                    #     ):
+                    #         channel = outcome['data']['asset_id']
+                    #         queue = self.queue.get(channel)
+                    #         if queue is not None:
+                    #             await queue.put(outcome['data'])
+                    #
+                    #     else:
+                    #         # tickers -> for non polymarket data
+                    #         if "channel" in outcome['data']:
+                    #             channel = outcome["data"]['channel']
+                    #         elif "asset_id" in outcome['data']:
+                    #             channel = outcome["data"]["asset_id"]
+                    #
+                    #         queue = self.queue.get(channel)
+                    #         if queue is not None:
+                    #             await queue.put(outcome['data'])
+                    #     # -------------------------------------------------- scrap the above
+                    #     # await asyncio.sleep(0.1)
         except asyncio.CancelledError as e:
             print("asyncio.CancelledError producer, closing program: ",e)
             raise

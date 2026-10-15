@@ -367,6 +367,11 @@ def test_valid_message_ticker(adapter_ticker, model_data_ticker):
     outcome = adapter_ticker.valid_message_can_pass_and_restructure_data(model_data_ticker)
     assert outcome['valid'] == True
 
+
+    ideal_message = [{'channel': 'ticker.BTC-25JUN27-98000-P.agg2', 'exch_ts_sec': 1788124051, 'exch_ts_micro': 207000, 'sys_ts_sec': 1788124054, 'sys_ts_micro': 24729, 'underlying_index': 'BTC-25JUN27', 'underlying_price': Decimal('81606.6100000'), 'bid': Decimal('0.2820000'), 'ask': Decimal('0.2870000'), 'bid_quantity': Decimal('1.0000000'), 'ask_quantity': Decimal('2.6000000'), 'high': Decimal('0'), 'low': Decimal('0'), 'price_change': Decimal('0'), 'volume': Decimal('0E-7'), 'volume_usd': Decimal('0E-7'), 'delta': Decimal('-0.6157500'), 'gamma': Decimal('0.0000100'), 'vega': Decimal('281.9131800'), 'theta': Decimal('-19.7707200'), 'rho': Decimal('-600.5794000'), 'index_price': Decimal('78442.2800000'), 'last_price': Decimal('0'), 'settlement_price': Decimal('0.2890285'), 'min_price': Decimal('0.2275000'), 'max_price': Decimal('0.3605000'), 'open_interest': Decimal('0E-7'), 'mark_price': Decimal('0.2843000'), 'interest_rate': Decimal('0E-7'), 'estimated_delivery_price': Decimal('78442.2800000'), 'mark_iv': Decimal('41.8600000'), 'bid_iv': Decimal('41.2000000'), 'ask_iv': Decimal('42.6400000')}]
+    assert isinstance(outcome["data"] , list)
+    assert outcome["data"] == ideal_message
+
 def test_invalid_message_ticker(adapter_ticker):
     msg = {
         'jsonrpc': '2.0',
@@ -387,6 +392,10 @@ def test_invalid_message_ticker(adapter_ticker):
 def test_validate_message_valid_message_trade(adapter_trade, model_data_trades):
     outcome = adapter_trade.valid_message_can_pass_and_restructure_data(model_data_trades)
     assert outcome['valid'] == True
+
+    ideal_message = [{'channel': 'trades.BTC-31AUG26-78000-C.agg2', 'sys_ts_sec': 1788124245, 'sys_ts_micro': 12731, 'exch_ts_sec': 1788124242, 'exch_ts_micro': 752000, 'price': Decimal('0.0075000'), 'iv': Decimal('29.2800000'), 'direction': 'sell', 'index_price': Decimal('78436.6400000'), 'instrument_name': 'BTC-31AUG26-78000-C', 'trade_seq': 42, 'amount': Decimal('0.2000000'), 'mark_price': Decimal('0.0081323'), 'tick_direction': 2, 'starbase_match_id': 219926831833296896, 'trade_id': Decimal('442891539'), 'contracts': Decimal('0.2000000'), 'starbase_timestamp': 1788124242752134005}]
+    assert isinstance(outcome["data"] , list)
+    assert outcome["data"] == ideal_message
 
 
 def test_invalid_message_trade(adapter_trade):
